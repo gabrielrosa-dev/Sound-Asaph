@@ -21,6 +21,7 @@ button, input, select { font: inherit; }
 button { color: inherit; }
 .app-shell { min-height: 100vh; }
 .sidebar { position: fixed; z-index: 5; inset: 0 auto 0 0; display: flex; flex-direction: column; width: 278px; padding: 29px 20px 19px; background: var(--surface); border-right: 1px solid var(--line); }
+.sidebar-close, .sidebar-backdrop { display: none; }
 .brand { display: inline-flex; align-items: center; gap: 10px; align-self: flex-start; margin: 1px 0 37px 4px; color: var(--ink); text-decoration: none; }
 .brand-mark { display: grid; width: 35px; height: 35px; place-items: center; border-radius: 11px; background: var(--green); color: #fff; }
 .brand-mark svg { width: 23px; height: 23px; }
@@ -191,6 +192,22 @@ kbd { padding: 2px 5px; border: 1px solid #e7e9e6; border-radius: 4px; backgroun
 .login-error { margin: -5px 0 0; color: #ad3434; font-size: 11px; }
 .login-demo-hint { margin: -3px 0 0; color: var(--muted); font-size: 10px; text-align: center; }
 .login-demo-hint code { padding: 2px 5px; border-radius: 4px; background: var(--surface-soft); font-family: "DM Mono", monospace; }
+.install-app-button { margin-top: 8px; }
+.install-app-button svg { width: 16px; height: 16px; flex: 0 0 auto; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.install-app-button[hidden] { display: none; }
+.install-dialog { width: min(480px, calc(100vw - 30px)); max-height: min(88vh, 720px); padding: 0; overflow: auto; border: 1px solid var(--line); border-radius: 13px; background: var(--surface); color: var(--ink); box-shadow: 0 24px 80px rgba(20,15,28,.28); }
+.install-dialog::backdrop { background: rgba(24,19,31,.58); backdrop-filter: blur(3px); }
+.install-dialog form { display: flex; flex-direction: column; gap: 15px; padding: 23px; }
+.install-dialog .edit-dialog-heading h2 { margin: 6px 0 0; font-family: Manrope,sans-serif; font-size: 22px; }
+.install-dialog-copy { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.install-confirm-button { width: 100%; }
+.install-instructions { display: grid; gap: 10px; }
+.install-instructions section { padding: 11px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-soft); }
+.install-instructions h3 { margin: 0 0 4px; color: var(--green-dark); font-size: 12px; }
+.install-instructions p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.55; }
+.install-instructions strong { color: var(--ink); }
+.install-status { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.5; }
+.install-status:empty { display: none; }
 
 body.stage-mode { --page: #17111f; --surface: #21182b; --surface-soft: #2c203b; --ink: #f2eaf8; --muted: #b5a4c3; --line: #40314e; --green: #c29ce9; --green-dark: #d2b5f0; --green-soft: #382748; --shadow: 0 18px 55px rgba(0,0,0,.22); color-scheme: dark; }
 .stage-mode .topbar { background: rgba(32,26,40,.78); }
@@ -224,6 +241,7 @@ body.stage-mode { --page: #17111f; --surface: #21182b; --surface-soft: #2c203b; 
 .stage-mode .voice-audio-track { border-color: #493e50; }
 .stage-mode .voice-audio-action { border-color: #493e50; background: #251e2d; }
 .stage-mode .login-dialog .edit-field select { border-color: #493e50; background: #251e2d; color: var(--ink); }
+.stage-mode .install-instructions section { background: var(--surface); }
 
 @media (max-width: 900px) {
   .sidebar { width: 245px; padding-right: 16px; padding-left: 16px; }
@@ -238,6 +256,8 @@ body.stage-mode { --page: #17111f; --surface: #21182b; --surface-soft: #2c203b; 
 @media (max-width: 680px) {
   .sidebar { z-index: 8; width: min(300px, 86vw); box-shadow: 15px 0 40px rgba(20,35,25,.13); transform: translateX(-105%); transition: transform .22s ease; }
   .sidebar.open { transform: translateX(0); }
+  .sidebar-close { position: absolute; top: 28px; right: 17px; display: grid; width: 31px; height: 31px; }
+  .sidebar-backdrop.visible { position: fixed; z-index: 7; inset: 0; display: block; border: 0; background: rgba(22,15,30,.42); }
   .main-area { margin-left: 0; }
   .topbar { height: 59px; justify-content: flex-start; gap: 11px; padding: 0 16px; }
   .mobile-menu { display: grid; width: 31px; height: 31px; }

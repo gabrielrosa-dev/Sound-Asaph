@@ -23,6 +23,7 @@ let audioDatabasePromise;
 let activeAudioObjectUrls = [];
 let sundaySongIds = loadSundaySetlist();
 let hasDriveCatalog = false;
+let driveAccessToken = null;
 let googleIdentityScript;
 const DRIVE_SONGS_CACHE_KEY = "sound-asaph-drive-songs";
 const LOCAL_SONGS_CACHE_KEY = "sound-asaph-local-songs";
@@ -49,6 +50,8 @@ const GOOGLE_DOCUMENT_MIME = "application/vnd.google-apps.document";
 const GOOGLE_FOLDER_MIME = "application/vnd.google-apps.folder";
 const SUPPORTED_DRIVE_EXTENSIONS = new Set([".txt", ".md", ".pdf", ".doc", ".docx"]);
 const MAX_DRIVE_FILE_SIZE = 20 * 1024 * 1024;
+const MAX_DRIVE_AUDIO_SIZE = 100 * 1024 * 1024;
+const SUPPORTED_DRIVE_AUDIO_EXTENSIONS = new Set([".mp3", ".mp4", ".mpeg", ".ogg", ".wav", ".m4a"]);
 
 function noteIndex(note) {
   const normalized = note.replace("b", "#");
@@ -245,17 +248,52 @@ function renderVoiceAudio(song) {
       ? audioFileExtension(track.fileName)
       : audioFileExtension(track.path);
     const player = document.createElement(extension === ".mp4" ? "video" : "audio");
-    player.controls = true;
+    player.controls = !track.drive;
     player.preload = "none";
     player.setAttribute("aria-label", `Reproduzir áudio ${label.textContent} de ${song.title}`);
     if (track.local && track.blob instanceof Blob) {
       const objectUrl = URL.createObjectURL(track.blob);
       activeAudioObjectUrls.push(objectUrl);
       player.src = objectUrl;
+    } else if (track.drive) {
+      const playDriveAudio = document.createElement("button");
+      playDriveAudio.className = "voice-audio-action";
+      playDriveAudio.type = "button";
+      playDriveAudio.textContent = "Baixar e reproduzir";
+      playDriveAudio.addEventListener("click", async () => {
+        if (!driveAccessToken) {
+          showToast("Conecte e sincronize o Google Drive novamente para reproduzir este áudio.");
+          return;
+        }
+        if (Number(track.size) > MAX_DRIVE_AUDIO_SIZE) {
+          showToast("Este áudio excede o limite de 100 MB para reprodução no navegador.");
+          return;
+        }
+        playDriveAudio.disabled = true;
+        playDriveAudio.textContent = "Carregando áudio...";
+        try {
+          const response = await driveFetch(
+            `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(track.id)}?alt=media`,
+            driveAccessToken
+          );
+          const objectUrl = URL.createObjectURL(await response.blob());
+          activeAudioObjectUrls.push(objectUrl);
+          player.src = objectUrl;
+          player.controls = true;
+          playDriveAudio.hidden = true;
+          await player.play();
+        } catch (error) {
+          console.error("Não foi possível carregar o áudio do Google Drive.", error);
+          playDriveAudio.disabled = false;
+          playDriveAudio.textContent = "Tentar reproduzir novamente";
+          showToast(error.message || "Não foi possível carregar o áudio do Drive.");
+        }
+      });
+      card.append(heading, playDriveAudio, player);
     } else {
       player.src = `musicas/${track.path.split("/").map(encodeURIComponent).join("/")}`;
     }
-    card.append(heading, player);
+    if (!track.drive) card.append(heading, player);
     if (isAdmin) {
       const actions = document.createElement("div");
       actions.className = "voice-audio-track-actions";
@@ -289,6 +327,75 @@ function setStageMode(enabled, persist = false) {
   toggle.setAttribute("aria-pressed", String(enabled));
   document.querySelector("#stage-toggle-label").textContent = enabled ? "Modo claro" : "Modo palco";
   if (persist) localStorage.setItem(STAGE_MODE_CACHE_KEY, String(enabled));
+}
+
+let pendingInstallPrompt = null;
+
+function setInstallButtonState(installed) {
+  const button = document.querySelector("#install-app-button");
+  button.hidden = installed;
+}
+
+function openInstallDialog() {
+  const dialog = document.querySelector("#install-dialog");
+  const installButton = document.querySelector("#install-confirm-button");
+  const status = document.querySelector("#install-status");
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const isStandalone = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+
+  installButton.hidden = !pendingInstallPrompt;
+  status.textContent = isStandalone
+    ? "O Sound-Asaph já está instalado neste dispositivo."
+    : isIOS
+      ? "No iOS, use o Safari e siga os passos acima; o iPhone não oferece instalação pelo botão desta página."
+      : pendingInstallPrompt
+        ? "Seu navegador permite instalar diretamente pelo botão abaixo."
+        : "Se não aparecer a opção de instalação do navegador, siga as instruções do seu dispositivo.";
+  dialog.showModal();
+}
+
+async function installSoundAsaph() {
+  if (!pendingInstallPrompt) return;
+  const promptEvent = pendingInstallPrompt;
+  pendingInstallPrompt = null;
+  document.querySelector("#install-confirm-button").hidden = true;
+  try {
+    await promptEvent.prompt();
+    const choice = await promptEvent.userChoice;
+    document.querySelector("#install-status").textContent = choice.outcome === "accepted"
+      ? "Instalação solicitada. Procure o Sound-Asaph na tela inicial ou na lista de aplicativos."
+      : "Instalação cancelada. Você pode tentar novamente pelo menu do navegador.";
+  } catch (error) {
+    console.error("Não foi possível iniciar a instalação do aplicativo.", error);
+    document.querySelector("#install-status").textContent = "O navegador não concluiu a instalação. Use o menu do navegador ou siga as instruções acima.";
+  }
+}
+
+function setupInstallableApp() {
+  const button = document.querySelector("#install-app-button");
+  const dialog = document.querySelector("#install-dialog");
+  const installed = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+  setInstallButtonState(installed);
+  button.addEventListener("click", openInstallDialog);
+  document.querySelector("#install-confirm-button").addEventListener("click", installSoundAsaph);
+  window.addEventListener("beforeinstallprompt", event => {
+    event.preventDefault();
+    pendingInstallPrompt = event;
+    if (dialog.open) openInstallDialog();
+  });
+  window.addEventListener("appinstalled", () => {
+    pendingInstallPrompt = null;
+    setInstallButtonState(true);
+    if (dialog.open) dialog.close();
+    showToast("Sound-Asaph instalado neste dispositivo.");
+  });
+  if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1")) {
+    navigator.serviceWorker.register(new URL("./service-worker.js", location.href), { scope: new URL("./", location.href).pathname })
+      .catch(error => {
+        console.error("Não foi possível preparar o Sound-Asaph para uso offline.", error);
+      });
+  }
 }
 
 function setRoleInterface() {
@@ -585,8 +692,14 @@ function selectSong(id) {
   renderCatalog(searchInput.value);
   renderLyrics();
   lyricsElement.scrollTop = 0;
-  document.querySelector("#catalog").classList.remove("open");
-  document.querySelector("#mobile-menu").setAttribute("aria-expanded", "false");
+  setCatalogOpen(false);
+}
+
+function setCatalogOpen(open) {
+  document.querySelector("#catalog").classList.toggle("open", open);
+  document.querySelector("#mobile-menu").setAttribute("aria-expanded", String(open));
+  document.querySelector("#mobile-menu").setAttribute("aria-label", open ? "Fechar catálogo" : "Abrir catálogo");
+  document.querySelector("#sidebar-backdrop").classList.toggle("visible", open);
 }
 
 function escapeHtml(value) {
@@ -965,25 +1078,45 @@ function requestDriveAccessToken(clientId) {
     });
   }
   return new Promise((resolve, reject) => {
+    let timeout;
     const tokenClient = window.google.accounts.oauth2.initTokenClient({
       client_id: clientId,
       scope: "https://www.googleapis.com/auth/drive",
       callback: response => {
+        clearTimeout(timeout);
         if (response.error || !response.access_token) {
-          reject(new Error(response.error_description || response.error || "O Google não autorizou o acesso ao Drive."));
+          const description = response.error_description || response.error || "O Google não autorizou o acesso ao Drive.";
+          reject(new Error(description.includes("access_denied")
+            ? "O Google bloqueou o acesso. Confira se esta conta foi adicionada como usuária de teste e se a pasta foi compartilhada com ela."
+            : description));
           return;
         }
         resolve(response.access_token);
       },
-      error_callback: error => reject(new Error(error.message || "O login do Google foi cancelado ou bloqueado."))
+      error_callback: error => {
+        clearTimeout(timeout);
+        reject(new Error(error.message || "O login do Google foi cancelado ou bloqueado."));
+      }
     });
+    timeout = setTimeout(() => reject(new Error("A autorização do Google não foi concluída. Feche a janela de login, confira se pop-ups estão liberados e tente novamente.")), 120000);
     tokenClient.requestAccessToken({ prompt: "" });
   });
 }
 
 async function driveFetch(url, accessToken) {
   const response = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
-  if (!response.ok) throw new Error(`O Google Drive respondeu com erro ${response.status}. Confira a pasta e as permissões.`);
+  if (!response.ok) {
+    let detail = "";
+    try {
+      const result = await response.json();
+      detail = result.error?.message || result.error_description || "";
+    } catch (error) {
+      console.warn("Não foi possível ler os detalhes do erro retornado pelo Google Drive.", error);
+    }
+    throw new Error(detail
+      ? `Google Drive (${response.status}): ${detail}`
+      : `O Google Drive respondeu com erro ${response.status}. Confira a pasta e as permissões.`);
+  }
   return response;
 }
 
@@ -1009,7 +1142,7 @@ async function listDriveFolder(folderId, accessToken) {
   return files;
 }
 
-async function listDriveSongs(folderId, accessToken) {
+async function listDriveSongs(folderId, accessToken, onProgress = () => {}) {
   const files = [];
   const folders = [{ id: folderId, path: [] }];
   const visited = new Set();
@@ -1017,6 +1150,7 @@ async function listDriveSongs(folderId, accessToken) {
     const folder = folders.shift();
     if (visited.has(folder.id)) continue;
     visited.add(folder.id);
+    onProgress(`Procurando arquivos no Drive (${visited.size} pasta(s) examinada(s))...`);
     const items = await listDriveFolder(folder.id, accessToken);
     for (const item of items) {
       if (item.mimeType === GOOGLE_FOLDER_MIME) {
@@ -1035,6 +1169,40 @@ function categoryFromDrivePath(path) {
   if (normalized.includes("data") && normalized.includes("especial")) return "datas-especiais";
   if (normalized.includes("preparacao")) return "preparacao";
   return "repertorio";
+}
+
+function driveSlug(value) {
+  return value.normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("pt-BR")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+function driveAudioGroup(path) {
+  const parentFolders = path.filter(name => !/^(vocal|vocais|audio|audios)$/i.test(
+    name.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+  ));
+  const songFolder = parentFolders.length > 1 ? parentFolders[1] : parentFolders[0] || "";
+  return {
+    folderId: parentFolders.length > 1 ? driveSlug(`${parentFolders[0]}-${songFolder}`) : driveSlug(songFolder),
+    audioKey: driveSlug(songFolder.replace(/\([^)]*\)/g, " ").replace(/\b(?:tom|tonalidade)\b.*$/i, ""))
+  };
+}
+
+function parseDriveAudio(file) {
+  const group = driveAudioGroup(file.drivePath || []);
+  return {
+    id: file.id,
+    drive: true,
+    folderId: group.folderId,
+    audioKey: group.audioKey,
+    label: localAudioLabel(file.name),
+    fileName: file.name,
+    type: file.mimeType,
+    size: file.size,
+    path: file.name
+  };
 }
 
 function driveCategoryFolderName(category) {
@@ -1116,6 +1284,9 @@ async function downloadDriveText(file, accessToken) {
     const url = `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(file.id)}/export?mimeType=text%2Fplain`;
     text = await (await driveFetch(url, accessToken)).text();
   } else if (extension === ".pdf" || extension === ".doc" || extension === ".docx") {
+    if (!["localhost", "127.0.0.1"].includes(location.hostname)) {
+      throw new Error("A extração de PDF/Word exige o servidor local ou uma API de extração publicada. No GitHub Pages, use .txt, .md ou Google Docs.");
+    }
     const url = `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(file.id)}?alt=media`;
     const document = await driveFetch(url, accessToken);
     const response = await fetch("/api/extract-text", {
@@ -1291,28 +1462,37 @@ async function importLocalSongs(files) {
   }
 }
 
-async function syncGoogleDrive() {
+async function syncGoogleDrive(onProgress = () => {}) {
   if (currentRole !== "admin") {
     throw new Error("Somente o perfil Admin pode sincronizar músicas.");
   }
   const { googleClientId, driveFolderId } = window.SOUND_ASAPH_CONFIG || {};
   if (!googleClientId || !driveFolderId) {
-    showToast("Configure o Client ID e o ID da pasta em drive-config.js.");
-    return;
+    throw new Error("Preencha googleClientId e driveFolderId em drive-config.js antes de conectar.");
   }
   if (!/^[A-Za-z0-9_-]+$/.test(driveFolderId)) {
     throw new Error("O ID da pasta no drive-config.js não parece válido.");
   }
 
+  onProgress("Aguardando autorização do Google...");
   const accessToken = await requestDriveAccessToken(googleClientId);
-  const files = await listDriveSongs(driveFolderId, accessToken);
+  driveAccessToken = accessToken;
+  onProgress("Acesso autorizado. Procurando arquivos e subpastas...");
+  const files = await listDriveSongs(driveFolderId, accessToken, onProgress);
   const candidates = supportedDriveFiles(files);
+  const driveAudios = files
+    .filter(file => SUPPORTED_DRIVE_AUDIO_EXTENSIONS.has(file.name.slice(file.name.lastIndexOf(".")).toLowerCase()))
+    .map(parseDriveAudio);
+  if (!candidates.length && !driveAudios.length) {
+    throw new Error(`O Drive foi acessado, mas não encontrei cifras ou áudios compatíveis na pasta configurada (${files.length} arquivo(s) analisado(s)). Confira o ID da pasta e os formatos dos arquivos.`);
+  }
   const importedSongs = [];
   const tooLargeFiles = candidates.filter(file => Number(file.size) > MAX_DRIVE_FILE_SIZE);
   const filesToImport = candidates.filter(file => Number(file.size) <= MAX_DRIVE_FILE_SIZE || !file.size);
   const failures = tooLargeFiles.map(file => `${file.name}: excede o limite de 20 MB`);
   for (let index = 0; index < filesToImport.length; index += 5) {
     const batch = filesToImport.slice(index, index + 5);
+    onProgress(`Lendo cifras do Drive (${Math.min(index + batch.length, filesToImport.length)}/${filesToImport.length})...`);
     const results = await Promise.allSettled(batch.map(async file => parseDriveSong(file, await downloadDriveText(file, accessToken))));
     results.forEach((result, batchIndex) => {
       if (result.status === "fulfilled") {
@@ -1321,13 +1501,20 @@ async function syncGoogleDrive() {
         song.driveName = batch[batchIndex].name;
         song.driveParentId = batch[batchIndex].driveParentId;
         song.driveVersion = batch[batchIndex].version;
-        song.category = categoryFromDrivePath(batch[batchIndex].drivePath || []);
-        song.folder = (batch[batchIndex].drivePath || []).join("/");
+        const drivePath = batch[batchIndex].drivePath || [];
+        const audioGroup = driveAudioGroup(drivePath);
+        song.category = categoryFromDrivePath(drivePath);
+        song.folder = drivePath.join("/");
+        song.folderId = audioGroup.folderId;
+        song.audioKey = audioGroup.audioKey;
         importedSongs.push(song);
       }
       else failures.push(`${batch[batchIndex].name}: ${result.reason.message}`);
     });
   }
+  const oversizedAudios = driveAudios.filter(track => Number(track.size) > MAX_DRIVE_AUDIO_SIZE);
+  const playableDriveAudios = driveAudios.filter(track => Number(track.size) <= MAX_DRIVE_AUDIO_SIZE || !track.size);
+  audioAssets = [...audioAssets.filter(track => !track.drive), ...playableDriveAudios];
   const previousDriveSongs = loadCachedDriveSongs() || [];
   const previousById = new Map(previousDriveSongs.map(song => [song.driveFileId, song]));
   const edits = loadSongEdits();
@@ -1357,14 +1544,16 @@ async function syncGoogleDrive() {
   renderCatalog(searchInput.value);
   if (songs.length) selectSong(songs[0].id);
 
-  const unsupported = files.length - candidates.length;
+  const unsupported = files.length - candidates.length - driveAudios.length;
   const notices = [];
+  if (oversizedAudios.length) notices.push(`${oversizedAudios.length} áudio(s) excedem 100 MB e não poderão ser reproduzidos no navegador.`);
   if (failures.length) notices.push(`${failures.length} arquivo(s) não importado(s): ${failures.join(" | ")}`);
   if (unsupported) notices.push(`${unsupported} arquivo(s) em formato não compatível foram ignorados.`);
   if (notices.length) {
     console.warn("Resultado parcial da sincronização do Drive.", notices);
-    showToast(`Sincronizadas ${importedSongs.length} músicas; ${failures.length + unsupported} arquivo(s) precisam de atenção.`);
-  } else showToast(`${importedSongs.length} música(s) sincronizada(s) do Google Drive.`);
+    showToast(`Sincronizadas ${importedSongs.length} músicas e ${playableDriveAudios.length} áudios; ${failures.length + unsupported} arquivo(s) precisam de atenção.`);
+  } else showToast(`${importedSongs.length} música(s) e ${playableDriveAudios.length} áudio(s) sincronizados do Google Drive.`);
+  document.querySelector("#drive-status").textContent = `${importedSongs.length} cifras e ${playableDriveAudios.length} áudios do Drive`;
 }
 
 function stopAutoScroll() {
@@ -1456,12 +1645,14 @@ document.querySelector("#sunday-category").addEventListener("click", () => {
   activeCategory = "sunday";
   searchInput.value = "";
   renderCatalog();
+  setCatalogOpen(false);
 });
 for (const button of document.querySelectorAll(".sidebar-category[data-category]")) {
   button.addEventListener("click", () => {
     activeCategory = button.dataset.category;
     searchInput.value = "";
     renderCatalog();
+    setCatalogOpen(false);
   });
 }
 document.querySelector("#song-import-button").addEventListener("click", () => {
@@ -1519,20 +1710,29 @@ document.querySelector("#voice-audio-replace-input").addEventListener("change", 
 });
 async function handleDriveSync(event) {
   if (currentRole !== "admin") return;
-  const button = event.currentTarget;
-  button.disabled = true;
+  document.querySelector("#drive-sync-button").disabled = true;
+  document.querySelector("#welcome-drive-button").disabled = true;
   const syncLabel = document.querySelector("#drive-sync-label");
   const welcomeLabel = document.querySelector("#welcome-drive-button span");
   syncLabel.textContent = "Conectando ao Drive...";
   welcomeLabel.textContent = "Conectando ao repertório...";
+  document.querySelector("#drive-status").textContent = "Aguardando autorização do Google...";
   try {
-    await syncGoogleDrive();
+    await syncGoogleDrive(status => {
+      syncLabel.textContent = status;
+      welcomeLabel.textContent = status;
+      document.querySelector("#drive-status").textContent = status;
+    });
   } catch (error) {
     console.error("Não foi possível sincronizar o Google Drive.", error);
+    document.querySelector("#drive-status").textContent = "Falha ao sincronizar com o Google Drive";
+    welcomeLabel.textContent = "Tentar conectar novamente";
     showToast(error.message || "Não foi possível sincronizar o Google Drive.");
   } finally {
     document.querySelector("#drive-sync-label").textContent = hasDriveCatalog ? "Sincronizar Google Drive" : "Conectar Google Drive";
-    welcomeLabel.textContent = "Conectar repertório compartilhado";
+    if (document.querySelector("#drive-status").textContent !== "Falha ao sincronizar com o Google Drive") {
+      welcomeLabel.textContent = "Conectar repertório compartilhado";
+    }
     document.querySelector("#drive-sync-button").disabled = false;
     document.querySelector("#welcome-drive-button").disabled = false;
   }
@@ -1540,9 +1740,11 @@ async function handleDriveSync(event) {
 document.querySelector("#drive-sync-button").addEventListener("click", handleDriveSync);
 document.querySelector("#welcome-drive-button").addEventListener("click", handleDriveSync);
 document.querySelector("#mobile-menu").addEventListener("click", event => {
-  const open = document.querySelector("#catalog").classList.toggle("open");
-  event.currentTarget.setAttribute("aria-expanded", String(open));
+  const open = !document.querySelector("#catalog").classList.contains("open");
+  setCatalogOpen(open);
 });
+document.querySelector("#sidebar-close").addEventListener("click", () => setCatalogOpen(false));
+document.querySelector("#sidebar-backdrop").addEventListener("click", () => setCatalogOpen(false));
 searchInput.addEventListener("input", () => {
   if (searchInput.value.trim()) activeCategory = "all";
   renderCatalog(searchInput.value);
@@ -1565,7 +1767,7 @@ document.addEventListener("keydown", event => {
     if (scrollTimer === null) startAutoScroll();
     else stopAutoScroll();
   } else if (event.key === "Escape") {
-    document.querySelector("#catalog").classList.remove("open");
+    setCatalogOpen(false);
   }
 });
 let touchStartY = 0;
@@ -1574,6 +1776,7 @@ window.addEventListener("touchend", event => {
   if (Math.abs(event.changedTouches[0].clientY - touchStartY) > 24 && scrollTimer !== null) stopAutoScroll();
 }, { passive: true });
 
+setupInstallableApp();
 setRoleInterface();
 setStageMode(loadStageMode());
 if (!currentRole) document.querySelector("#login-dialog").showModal();

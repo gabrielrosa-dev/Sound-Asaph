@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#21142f">
     <meta name="description" content="Cifras e ferramentas práticas para o ministério de louvor.">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Sound-Asaph">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
     <title>Sound-Asaph — Cifras para louvor</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -23,6 +29,9 @@
           </span>
           <span class="brand-name">sound<span>-</span>asaph</span>
         </a>
+        <button class="sidebar-close icon-button" id="sidebar-close" type="button" aria-label="Fechar catálogo">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+        </button>
         <button class="sidebar-category setlist-heading" id="sunday-category" type="button" aria-pressed="false">
           <span class="eyebrow">LOUVOR DE DOMINGO</span>
           <span class="song-count" id="setlist-count">0</span>
@@ -60,12 +69,17 @@
           <span class="status-dot"></span>
           <span id="drive-status">Catálogo deste dispositivo</span>
         </div>
+        <button class="catalog-action-button install-app-button" id="install-app-button" type="button">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v10m0 0-3.5-3.5M10 13l3.5-3.5M4 15v2h12v-2"/></svg>
+          <span>Instalar aplicativo</span>
+        </button>
         <p class="demo-warning">Demonstração: perfis e alterações não têm proteção real nem são compartilhados.</p>
         <button class="drive-sync-button" id="drive-sync-button" type="button">
           <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 13V3m0 0L6.5 6.5M10 3l3.5 3.5M4 11.5v3A1.5 1.5 0 0 0 5.5 16h9a1.5 1.5 0 0 0 1.5-1.5v-3"/></svg>
           <span id="drive-sync-label">Conectar Google Drive</span>
         </button>
       </aside>
+      <button class="sidebar-backdrop" id="sidebar-backdrop" type="button" aria-label="Fechar catálogo" tabindex="-1"></button>
 
       <main class="main-area">
         <header class="topbar">
@@ -230,6 +244,34 @@
         <button class="dialog-button primary login-submit" type="submit">Entrar</button>
         <p class="login-error" id="login-error" role="alert" hidden></p>
         <p class="login-demo-hint">Senha pública de demonstração: <code>123</code></p>
+      </form>
+    </dialog>
+    <dialog class="install-dialog" id="install-dialog" aria-labelledby="install-title">
+      <form method="dialog">
+        <div class="edit-dialog-heading">
+          <div>
+            <span class="eyebrow">SOUND-ASAPH NO SEU DISPOSITIVO</span>
+            <h2 id="install-title">Instalar aplicativo</h2>
+          </div>
+          <button class="icon-button" type="submit" aria-label="Fechar instruções">×</button>
+        </div>
+        <p class="install-dialog-copy">Adicione o Sound-Asaph à tela inicial ou ao computador para abrir como um aplicativo. A instalação não copia automaticamente todo o conteúdo do Google Drive nem torna as cifras disponíveis offline.</p>
+        <button class="dialog-button primary install-confirm-button" id="install-confirm-button" type="button" hidden>Instalar agora</button>
+        <div class="install-instructions" id="install-instructions">
+          <section>
+            <h3>Android</h3>
+            <p>No Chrome, toque em <strong>⋮</strong> e escolha <strong>Instalar app</strong> ou <strong>Adicionar à tela inicial</strong>.</p>
+          </section>
+          <section>
+            <h3>iPhone ou iPad</h3>
+            <p>No Safari, toque em <strong>Compartilhar</strong>, depois em <strong>Adicionar à Tela de Início</strong> e confirme em <strong>Adicionar</strong>.</p>
+          </section>
+          <section>
+            <h3>Computador</h3>
+            <p>No Chrome ou Edge, use o ícone <strong>Instalar</strong> na barra de endereço ou o menu do navegador → <strong>Instalar Sound-Asaph</strong>.</p>
+          </section>
+        </div>
+        <p class="install-status" id="install-status" role="status" aria-live="polite"></p>
       </form>
     </dialog>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
