@@ -72,6 +72,8 @@ kbd { padding: 2px 5px; border: 1px solid #e7e9e6; border-radius: 4px; backgroun
 .song-heading-actions { display: flex; gap: 7px; }
 .song-action.edit-action { font-size: 13px; }
 .sidebar-footer { display: flex; align-items: center; gap: 8px; margin-top: auto; padding: 15px 4px 2px; border-top: 1px solid var(--line); color: #929b94; font-size: 10px; }
+.sidebar-footer #drive-status { min-width: 0; padding: 0; border: 0; background: transparent; color: inherit; font-size: inherit; text-align: left; cursor: help; }
+.sidebar-footer #drive-status:focus-visible { border-radius: 3px; outline: 2px solid var(--green); outline-offset: 2px; }
 .catalog-action-button, .drive-sync-button { display: flex; width: 100%; min-height: 38px; align-items: center; justify-content: center; gap: 8px; padding: 8px 10px; border: 1px solid #d4c2e7; border-radius: 8px; background: #f5effa; color: #553579; font-size: 11px; font-weight: 700; cursor: pointer; transition: background .15s, border-color .15s; }
 .catalog-action-button { margin-top: 12px; }
 .drive-sync-button { margin-top: 8px; }

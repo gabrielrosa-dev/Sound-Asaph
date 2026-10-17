@@ -32,9 +32,13 @@ O app guarda em cache a interface e os catálogos incluídos no projeto para abr
 
 ## Sincronizar uma pasta compartilhada do Google Drive
 
-O Admin pode conectar uma pasta do Google Drive ou de um Shared Drive. A sincronização lê também as subpastas e importa `.txt`, `.md`, `.pdf`, `.doc`, `.docx` e Google Docs. No GitHub Pages, PDF/Word ainda exigem uma API de extração publicada; localmente, a extração usa o servidor Node do app. Arquivos de áudio comuns (MP3, MP4, MPEG, OGG, WAV e M4A) podem ser reproduzidos do Drive, com limite de 100 MB por arquivo para download no navegador. Importações feitas no aplicativo são enviadas como `.txt` para a pasta da categoria; edições de arquivos `.txt`/`.md` e exclusões de músicas sincronizadas também são aplicadas ao Drive. Alterações feitas diretamente no Drive aparecem quando o Admin sincroniza novamente. A lista de Louvor de Domingo e as preferências da interface continuam locais a cada navegador.
+Todos os perfis podem conectar uma pasta do Google Drive ou de um Shared Drive para ler o catálogo; somente o Admin recebe acesso de gravação pelo aplicativo. O app percorre as subpastas e importa `.txt`, `.md` e Google Docs; no servidor local também extrai `.pdf`, `.doc` e `.docx`. No GitHub Pages, PDF/Word exigem uma API de extração publicada. Áudios comuns (MP3, MP4, MPEG, OGG, WAV e M4A) aparecem no catálogo e são baixados para reprodução quando solicitados, com limite de 100 MB por arquivo. Importações feitas pelo Admin são enviadas como `.txt`; edições compatíveis e exclusões também são aplicadas ao Drive. A lista de Louvor de Domingo e as preferências da interface continuam locais a cada navegador.
 
-O OAuth usa `https://www.googleapis.com/auth/drive`, que concede acesso amplo ao Drive da conta conectada e não pode ser limitado tecnicamente à pasta configurada. A conta ainda precisa ter permissão de edição no Shared Drive para gravar ou apagar arquivos. Avalie esse escopo antes de autorizar. O token de acesso não é salvo pelo Sound-Asaph.
+Depois da primeira conexão, o app verifica alterações no Drive a cada minuto enquanto a página está aberta e sincronizada; também atualiza ao voltar para uma aba aberta. O cache local de cifras e da lista de áudios fica salvo no IndexedDB deste navegador e continua disponível após recarregar a página. O token do Google não é persistido: cada dispositivo/perfil precisa conectar sua conta, e pode ser necessário reconectar quando a autorização expirar. A reprodução de áudio requer internet e autorização ativa; os arquivos de áudio não são copiados para o cache offline.
+
+Essa atualização é periódica, não instantânea. GitHub Pages é hospedagem estática e não pode receber notificações push do Google Drive; sincronização realmente em tempo real exigiria um backend com webhook público e renovação das notificações.
+
+O OAuth usa o escopo somente leitura para Músico/Vocal e o escopo amplo `https://www.googleapis.com/auth/drive` para Admin, necessário para editar e apagar arquivos. O escopo amplo não pode ser limitado tecnicamente à pasta configurada. A conta Admin ainda precisa de permissão de edição no Shared Drive para gravar ou apagar arquivos. Avalie esse acesso antes de autorizar.
 
 1. No [Google Cloud Console](https://console.cloud.google.com/), crie um projeto ou escolha um existente e ative a **Google Drive API**.
 2. Configure a tela de consentimento OAuth e adicione sua conta como usuário de teste, caso o app esteja em modo de teste.
@@ -49,11 +53,11 @@ O OAuth usa `https://www.googleapis.com/auth/drive`, que concede acesso amplo ao
    ```
 
    O ID da pasta é o trecho final da URL do Drive, depois de `/folders/`. Não coloque um client secret nesse arquivo.
-5. Reinicie `npm start`, abra o app como Admin e selecione **Conectar Drive**. Entre na conta que tem acesso à pasta e autorize a leitura e gravação.
+5. Reinicie `npm start`, entre em qualquer perfil e selecione **Conectar Drive**. Entre com uma conta que tenha acesso à pasta e autorize a leitura. Para editar ou apagar arquivos pelo app, conecte-se como Admin e autorize também a gravação.
 
-Use o ID da pasta raiz compartilhada (o trecho final da URL depois de `/folders/`) em `driveFolderId`. A API é configurada para incluir itens de Shared Drives. Para outro músico acessar o catálogo, ele conecta a própria conta Google que tenha acesso à pasta. As gravações e exclusões só ficam disponíveis no perfil Admin.
+Use o ID da pasta raiz compartilhada (o trecho final da URL depois de `/folders/`) em `driveFolderId`. A API é configurada para incluir itens de Shared Drives. Cada membro da equipe conecta neste dispositivo a própria conta Google com acesso à pasta. As gravações e exclusões só ficam disponíveis no perfil Admin.
 
-A sincronização do Drive é executada pelo navegador. No GitHub Pages, ela pode ler e gravar formatos de texto e exportar Google Docs para leitura; PDF/Word precisam do servidor local para extrair texto e não podem ser editados de volta pelo app. Edições desses formatos e de Google Docs ficam apenas neste navegador, sem alterar o original. Áudios que já estão na pasta do Drive podem ser baixados e reproduzidos pelo app; o envio/gerenciamento de áudios pelo app ainda permanece local. O campo **Louvor de Domingo** é uma lista individual, salva no armazenamento local de cada navegador.
+A sincronização do Drive é executada pelo navegador. No GitHub Pages, ela pode ler e gravar formatos de texto e exportar Google Docs para leitura; PDF/Word precisam do servidor local para extrair texto e não podem ser editados de volta pelo app. Edições desses formatos e de Google Docs ficam apenas neste navegador, sem alterar o original. Áudios que já estão no Drive podem ser baixados e reproduzidos pelo app; o envio/gerenciamento de áudios pelo app ainda permanece local. O campo **Louvor de Domingo** é uma lista individual, salva no armazenamento local de cada navegador.
 
 São aceitos documentos Google, `.txt`, `.md`, `.pdf`, `.doc` e `.docx` de até 20 MB. PDFs escaneados sem camada de texto não podem ser lidos (OCR não está incluído). A extração de PDF/Word acontece no servidor local, sem salvar o documento. Linhas de acordes separadas da letra são convertidas em cifras entre colchetes em uma linha própria; arquivos sem acordes reconhecíveis são reportados como não importados. Arquivos em outros formatos são ignorados e contabilizados na mensagem de sincronização. Se o tom não estiver informado no arquivo, o controle de tom mostra `—`; os acordes continuam podendo ser transpostos.
 
@@ -87,7 +91,7 @@ Arquivos `.doc`/`.docx` não são lidos diretamente; exporte-os ou salve-os como
 
 ## Catálogo do Drive e fallback local
 
-O diretório de arquivos `musicas/` foi removido após a confirmação de que as cifras e os áudios necessários estão no Drive. Conecte e sincronize o Drive no perfil Admin para carregar o repertório compartilhado; após a sincronização, o catálogo do Drive substitui as cifras embutidas e os áudios do Drive ficam disponíveis para reprodução. Cada dispositivo precisa sincronizar sua própria conta com acesso à pasta compartilhada. O app mantém `data/songs.json` e `data/folder-songs.json` como fallback de cifras quando ainda não há catálogo do Drive salvo neste dispositivo; esses arquivos não incluem os áudios originais.
+O diretório de arquivos `musicas/` foi removido após a confirmação de que as cifras e os áudios necessários estão no Drive. Conecte e sincronize o Drive em cada dispositivo para carregar o repertório compartilhado; após a sincronização, o catálogo do Drive substitui as cifras embutidas e os áudios ficam disponíveis para reprodução. Cada dispositivo precisa conectar uma conta com acesso à pasta compartilhada. O app mantém `data/songs.json` e `data/folder-songs.json` como fallback de cifras quando ainda não há catálogo do Drive salvo neste dispositivo; esses arquivos não incluem os áudios originais.
 
 ## Importar pelo aplicativo
 
@@ -103,7 +107,7 @@ O seletor de perfil oferece **Admin**, **Músico** e **Vocal**. A senha pública
 
 O Admin também vê o painel de áudios vocais da música selecionada e pode adicionar arquivos MP3, MP4, MPEG, OGG, WAV ou M4A (até 100 MB cada), renomear as faixas, substituir seus arquivos ou ocultá-las. Os arquivos adicionados e as alterações de exibição ficam somente neste navegador; essas ações não modificam os arquivos originais do Drive.
 
-Esses perfis são apenas uma demonstração visual: a senha e as permissões estão no código público do site, e as alterações ficam no armazenamento local do navegador. Não há autenticação segura, banco de dados compartilhado ou sincronização de edições entre dispositivos. Para uso real da equipe com permissões e dados compartilhados, é necessário conectar o app a um backend com autenticação.
+Esses perfis são apenas uma demonstração visual: a senha e as permissões estão no código público do site. Alterações feitas como Músico/Vocal e arquivos adicionados localmente não são compartilhados; somente operações compatíveis feitas pelo Admin conectado ao Drive são gravadas na pasta compartilhada. Não há autenticação segura para os perfis. Para impor permissões reais, é necessário um backend com autenticação.
 
 O app pode ser publicado como site estático no GitHub Pages, mas a extração de PDF/Word feita pelo servidor local não estará disponível nessa hospedagem sem um serviço adicional. Os áudios do Drive são baixados para reprodução e não são armazenados pelo cache offline do aplicativo.
 

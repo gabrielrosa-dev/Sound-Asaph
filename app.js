@@ -20,12 +20,21 @@ let scrollTimer = null;
 let scrollDirection = 1;
 let toastTimer = null;
 let audioDatabasePromise;
+let driveCacheDatabasePromise;
 let activeAudioObjectUrls = [];
 let sundaySongIds = loadSundaySetlist();
 let hasDriveCatalog = false;
 let driveAccessToken = null;
+let driveAccessTokenExpiresAt = 0;
+let driveSyncTimer = null;
+let driveSyncPromise = null;
+let driveAutoSyncRunning = false;
+let lastDriveSyncAt = 0;
 let googleIdentityScript;
 const DRIVE_SONGS_CACHE_KEY = "sound-asaph-drive-songs";
+const DRIVE_CACHE_DATABASE_NAME = "sound-asaph-drive-cache";
+const DRIVE_CACHE_STORE_NAME = "catalog";
+const DRIVE_SYNC_INTERVAL_MS = 60_000;
 const LOCAL_SONGS_CACHE_KEY = "sound-asaph-local-songs";
 const SONG_EDITS_CACHE_KEY = "sound-asaph-song-edits";
 const DEMO_ROLE_CACHE_KEY = "sound-asaph-demo-role";
@@ -262,10 +271,6 @@ function renderVoiceAudio(song) {
       playDriveAudio.type = "button";
       playDriveAudio.textContent = "Baixar e reproduzir";
       playDriveAudio.addEventListener("click", async () => {
-        if (!driveAccessToken) {
-          showToast("Conecte e sincronize o Google Drive novamente para reproduzir este áudio.");
-          return;
-        }
         if (Number(track.size) > MAX_DRIVE_AUDIO_SIZE) {
           showToast("Este áudio excede o limite de 100 MB para reprodução no navegador.");
           return;
@@ -273,9 +278,15 @@ function renderVoiceAudio(song) {
         playDriveAudio.disabled = true;
         playDriveAudio.textContent = "Carregando áudio...";
         try {
+          const { googleClientId } = window.SOUND_ASAPH_CONFIG || {};
+          if (!googleClientId) throw new Error("Configure o Client ID do Google para reproduzir áudios do Drive.");
+          let accessToken = driveAccessToken;
+          if (!accessToken || Date.now() >= driveAccessTokenExpiresAt - 30_000) {
+            accessToken = await requestDriveAccessToken(googleClientId);
+          }
           const response = await driveFetch(
             `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(track.id)}?alt=media`,
-            driveAccessToken
+            accessToken
           );
           const objectUrl = URL.createObjectURL(await response.blob());
           activeAudioObjectUrls.push(objectUrl);
@@ -401,7 +412,7 @@ function setRoleInterface() {
   document.body.dataset.role = currentRole || "";
   document.querySelector("#profile-label").textContent = ROLE_LABELS[currentRole] || "Perfil";
   document.querySelector("#song-import-button").hidden = currentRole !== "admin";
-  document.querySelector("#drive-sync-button").hidden = currentRole !== "admin";
+  document.querySelector("#drive-sync-button").hidden = !currentRole;
   document.querySelector("#edit-song-button").hidden = !currentRole;
   document.querySelector("#delete-song-button").hidden = currentRole !== "admin";
   if (currentRole && currentSong()) {
@@ -467,6 +478,9 @@ function loginDemoRole(event) {
 }
 
 function logoutDemoRole() {
+  stopDriveAutoSync();
+  driveAccessToken = null;
+  driveAccessTokenExpiresAt = 0;
   currentRole = null;
   try {
     localStorage.removeItem(DEMO_ROLE_CACHE_KEY);
@@ -776,7 +790,7 @@ function saveAudioSettings(settings) {
 }
 
 function bundledAudioId(track) {
-  return `bundled:${track.path}`;
+  return track.drive ? `drive:${track.id}` : `bundled:${track.path}`;
 }
 
 function localAudioLabel(filename) {
@@ -979,20 +993,23 @@ async function saveSongEdit(event) {
   document.querySelector("#edit-song-dialog").close();
   selectSong(song.id);
   let driveSaveError;
+  let driveSaved = false;
   const { googleClientId, driveFolderId } = window.SOUND_ASAPH_CONFIG || {};
   if (currentRole === "admin" && googleClientId && driveFolderId) {
     try {
       const accessToken = await requestDriveAccessToken(googleClientId);
       updatedSong = await saveSongToDrive(updatedSong, accessToken, driveFolderId);
+      driveSaved = true;
       songs = songs.map(item => item.id === song.id ? updatedSong : item);
       if (song.id.startsWith("local-")) {
         const localSongs = loadCachedLocalSongs().map(item => item.id === song.id ? updatedSong : item);
         localStorage.setItem(LOCAL_SONGS_CACHE_KEY, JSON.stringify(localSongs));
       } else {
-        const cachedSongs = loadCachedDriveSongs() || [];
-        saveCachedDriveSongs(cachedSongs.map(item => item.id === song.id ? updatedSong : item));
+        const cachedSongs = await loadCachedDriveSongs() || [];
+        await saveCachedDriveSongs(cachedSongs.map(item => item.id === song.id ? updatedSong : item));
       }
       hasDriveCatalog = true;
+      startDriveAutoSync();
       document.querySelector("#drive-status").textContent = "Sincronizado com Google Drive";
       document.querySelector("#drive-sync-label").textContent = "Sincronizar Drive";
       selectSong(song.id);
@@ -1003,24 +1020,88 @@ async function saveSongEdit(event) {
   }
   showToast(driveSaveError
     ? `Cifra salva neste dispositivo; falha na sincronização: ${driveSaveError.message}`
-    : hasDriveCatalog ? "Cifra salva e sincronizada com o Google Drive." : "Cifra salva neste dispositivo.");
+    : driveSaved ? "Cifra salva e sincronizada com o Google Drive." : "Cifra salva neste dispositivo.");
 }
 
-function loadCachedDriveSongs() {
+function openDriveCacheDatabase() {
+  if (!("indexedDB" in window)) return Promise.reject(new Error("Este navegador não oferece armazenamento local para o catálogo do Drive."));
+  if (driveCacheDatabasePromise) return driveCacheDatabasePromise;
+  driveCacheDatabasePromise = new Promise((resolve, reject) => {
+    const request = indexedDB.open(DRIVE_CACHE_DATABASE_NAME, 1);
+    request.onupgradeneeded = () => {
+      if (!request.result.objectStoreNames.contains(DRIVE_CACHE_STORE_NAME)) {
+        request.result.createObjectStore(DRIVE_CACHE_STORE_NAME, { keyPath: "id" });
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error || new Error("Não foi possível abrir o cache do Google Drive."));
+    request.onblocked = () => reject(new Error("O cache do Drive está bloqueado por outra aba do aplicativo."));
+  });
+  driveCacheDatabasePromise.catch(() => { driveCacheDatabasePromise = null; });
+  return driveCacheDatabasePromise;
+}
+
+async function driveCacheRequest(method, value) {
+  const database = await openDriveCacheDatabase();
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction(DRIVE_CACHE_STORE_NAME, method === "put" ? "readwrite" : "readonly");
+    const store = transaction.objectStore(DRIVE_CACHE_STORE_NAME);
+    const request = method === "put" ? store.put(value) : store.get(value);
+    let result;
+    request.onsuccess = () => { result = request.result; };
+    request.onerror = () => reject(request.error || new Error("Não foi possível acessar o cache do Google Drive."));
+    transaction.onerror = () => reject(transaction.error || new Error("Não foi possível salvar o cache do Google Drive."));
+    transaction.onabort = () => reject(transaction.error || new Error("A operação no cache do Google Drive foi cancelada."));
+    transaction.oncomplete = () => resolve(result);
+  });
+}
+
+function validateDriveSongsCache(songs) {
+  if (!Array.isArray(songs) || songs.some(song =>
+    !song || typeof song.id !== "string" || typeof song.title !== "string" || typeof song.lyrics !== "string"
+  )) throw new Error("O catálogo sincronizado salvo neste dispositivo não é válido.");
+  return songs;
+}
+
+function validateDriveAudioCache(tracks) {
+  if (!Array.isArray(tracks) || tracks.some(track =>
+    !track || typeof track.id !== "string" || typeof track.folderId !== "string" ||
+    typeof track.audioKey !== "string" || typeof track.label !== "string" ||
+    typeof track.path !== "string" || track.drive !== true
+  )) throw new Error("A lista de áudios do Drive salva neste dispositivo não é válida.");
+  return tracks;
+}
+
+async function loadCachedDriveSongs() {
+  try {
+    const cached = await driveCacheRequest("get", "songs");
+    if (cached) return validateDriveSongsCache(cached.value);
+  } catch (error) {
+    console.error("Não foi possível ler o cache persistente do Google Drive.", error);
+  }
   try {
     const stored = localStorage.getItem(DRIVE_SONGS_CACHE_KEY);
     if (stored === null) return null;
-    const parsed = JSON.parse(stored);
-    if (!Array.isArray(parsed) || parsed.some(song =>
-      !song || typeof song.id !== "string" || typeof song.title !== "string" || typeof song.lyrics !== "string"
-    )) {
-      throw new Error("O catálogo sincronizado salvo neste dispositivo não é válido.");
+    const legacySongs = validateDriveSongsCache(JSON.parse(stored));
+    try {
+      await saveCachedDriveSongs(legacySongs);
+    } catch (error) {
+      console.error("Não foi possível migrar o catálogo sincronizado para o armazenamento persistente.", error);
     }
-    return parsed;
+    return legacySongs;
   } catch (error) {
     console.error("Não foi possível carregar o catálogo sincronizado.", error);
     return null;
   }
+}
+
+async function loadCachedDriveAudio() {
+  const cached = await driveCacheRequest("get", "audio");
+  return cached ? validateDriveAudioCache(cached.value) : [];
+}
+
+async function saveCachedDriveAudio(tracks) {
+  await driveCacheRequest("put", { id: "audio", value: validateDriveAudioCache(tracks) });
 }
 
 function loadCachedLocalSongs() {
@@ -1040,12 +1121,12 @@ function loadCachedLocalSongs() {
   }
 }
 
-function saveCachedDriveSongs(driveSongs) {
+async function saveCachedDriveSongs(driveSongs) {
+  await driveCacheRequest("put", { id: "songs", value: validateDriveSongsCache(driveSongs) });
   try {
-    localStorage.setItem(DRIVE_SONGS_CACHE_KEY, JSON.stringify(driveSongs));
+    localStorage.removeItem(DRIVE_SONGS_CACHE_KEY);
   } catch (error) {
-    console.error("Não foi possível salvar o catálogo sincronizado neste dispositivo.", error);
-    showToast("Drive sincronizado, mas não foi possível guardar uma cópia neste navegador.");
+    console.warn("O catálogo foi salvo, mas o cache antigo não pôde ser removido.", error);
   }
 }
 
@@ -1077,9 +1158,12 @@ function requestDriveAccessToken(clientId) {
   }
   return new Promise((resolve, reject) => {
     let timeout;
+    const scope = currentRole === "admin"
+      ? "https://www.googleapis.com/auth/drive"
+      : "https://www.googleapis.com/auth/drive.readonly";
     const tokenClient = window.google.accounts.oauth2.initTokenClient({
       client_id: clientId,
-      scope: "https://www.googleapis.com/auth/drive",
+      scope,
       callback: response => {
         clearTimeout(timeout);
         if (response.error || !response.access_token) {
@@ -1089,6 +1173,8 @@ function requestDriveAccessToken(clientId) {
             : description));
           return;
         }
+        driveAccessToken = response.access_token;
+        driveAccessTokenExpiresAt = Date.now() + Math.max(Number(response.expires_in) || 3600, 60) * 1000;
         resolve(response.access_token);
       },
       error_callback: error => {
@@ -1199,6 +1285,8 @@ function parseDriveAudio(file) {
     fileName: file.name,
     type: file.mimeType,
     size: file.size,
+    version: file.version,
+    modifiedTime: file.modifiedTime,
     path: file.name
   };
 }
@@ -1439,6 +1527,7 @@ async function importLocalSongs(files) {
         localStorage.setItem(LOCAL_SONGS_CACHE_KEY, JSON.stringify(updatedLocalSongs));
         importedSongs.splice(0, importedSongs.length, ...importedSongs.map(song => savedById.get(song.id) || song));
         hasDriveCatalog = true;
+        startDriveAutoSync();
         document.querySelector("#drive-status").textContent = "Sincronizado com Google Drive";
         document.querySelector("#drive-sync-label").textContent = "Sincronizar Drive";
       }
@@ -1460,10 +1549,34 @@ async function importLocalSongs(files) {
   }
 }
 
-async function syncGoogleDrive(onProgress = () => {}) {
-  if (currentRole !== "admin") {
-    throw new Error("Somente o perfil Admin pode sincronizar músicas.");
+function addDriveFileMetadata(song, file) {
+  const drivePath = file.drivePath || [];
+  const audioGroup = driveAudioGroup(drivePath);
+  return {
+    ...song,
+    driveFileId: file.id,
+    driveName: file.name,
+    driveParentId: file.driveParentId,
+    driveVersion: file.version,
+    category: categoryFromDrivePath(drivePath),
+    folder: drivePath.join("/"),
+    folderId: audioGroup.folderId,
+    audioKey: audioGroup.audioKey
+  };
+}
+
+async function syncGoogleDrive(accessToken, onProgress = () => {}, quiet = false) {
+  if (!currentRole) throw new Error("Escolha um perfil antes de conectar ao Google Drive.");
+  if (driveSyncPromise) return driveSyncPromise;
+  driveSyncPromise = performGoogleDriveSync(accessToken, onProgress, quiet);
+  try {
+    return await driveSyncPromise;
+  } finally {
+    driveSyncPromise = null;
   }
+}
+
+async function performGoogleDriveSync(accessToken, onProgress, quiet) {
   const { googleClientId, driveFolderId } = window.SOUND_ASAPH_CONFIG || {};
   if (!googleClientId || !driveFolderId) {
     throw new Error("Preencha googleClientId e driveFolderId em drive-config.js antes de conectar.");
@@ -1472,9 +1585,6 @@ async function syncGoogleDrive(onProgress = () => {}) {
     throw new Error("O ID da pasta no drive-config.js não parece válido.");
   }
 
-  onProgress("Aguardando autorização do Google...");
-  const accessToken = await requestDriveAccessToken(googleClientId);
-  driveAccessToken = accessToken;
   onProgress("Acesso autorizado. Procurando arquivos e subpastas...");
   const files = await listDriveSongs(driveFolderId, accessToken, onProgress);
   const candidates = supportedDriveFiles(files);
@@ -1484,37 +1594,50 @@ async function syncGoogleDrive(onProgress = () => {}) {
   if (!candidates.length && !driveAudios.length) {
     throw new Error(`O Drive foi acessado, mas não encontrei cifras ou áudios compatíveis na pasta configurada (${files.length} arquivo(s) analisado(s)). Confira o ID da pasta e os formatos dos arquivos.`);
   }
+  const previousDriveSongs = await loadCachedDriveSongs() || [];
+  const previousById = new Map(previousDriveSongs.map(song => [song.driveFileId, song]));
   const importedSongs = [];
-  const tooLargeFiles = candidates.filter(file => Number(file.size) > MAX_DRIVE_FILE_SIZE);
-  const filesToImport = candidates.filter(file => Number(file.size) <= MAX_DRIVE_FILE_SIZE || !file.size);
-  const failures = tooLargeFiles.map(file => `${file.name}: excede o limite de 20 MB`);
-  for (let index = 0; index < filesToImport.length; index += 5) {
-    const batch = filesToImport.slice(index, index + 5);
-    onProgress(`Lendo cifras do Drive (${Math.min(index + batch.length, filesToImport.length)}/${filesToImport.length})...`);
-    const results = await Promise.allSettled(batch.map(async file => parseDriveSong(file, await downloadDriveText(file, accessToken))));
-    results.forEach((result, batchIndex) => {
-      if (result.status === "fulfilled") {
-        const song = result.value;
-        song.driveFileId = batch[batchIndex].id;
-        song.driveName = batch[batchIndex].name;
-        song.driveParentId = batch[batchIndex].driveParentId;
-        song.driveVersion = batch[batchIndex].version;
-        const drivePath = batch[batchIndex].drivePath || [];
-        const audioGroup = driveAudioGroup(drivePath);
-        song.category = categoryFromDrivePath(drivePath);
-        song.folder = drivePath.join("/");
-        song.folderId = audioGroup.folderId;
-        song.audioKey = audioGroup.audioKey;
-        importedSongs.push(song);
+  const failures = [];
+  for (let index = 0; index < candidates.length; index += 5) {
+    const batch = candidates.slice(index, index + 5);
+    onProgress(`Lendo cifras do Drive (${Math.min(index + batch.length, candidates.length)}/${candidates.length})...`);
+    const results = await Promise.allSettled(batch.map(async file => {
+      const cachedSong = previousById.get(file.id);
+      if (cachedSong && cachedSong.driveVersion === file.version) {
+        return addDriveFileMetadata(cachedSong, file);
       }
-      else failures.push(`${batch[batchIndex].name}: ${result.reason.message}`);
+      if (Number(file.size) > MAX_DRIVE_FILE_SIZE) {
+        throw new Error("excede o limite de 20 MB");
+      }
+      const parsedSong = parseDriveSong(file, await downloadDriveText(file, accessToken));
+      return addDriveFileMetadata(parsedSong, file);
+    }));
+    results.forEach((result, batchIndex) => {
+      const file = batch[batchIndex];
+      if (result.status === "fulfilled") {
+        importedSongs.push(result.value);
+        return;
+      }
+      const reason = result.reason instanceof Error ? result.reason.message : String(result.reason);
+      failures.push(`${file.name}: ${reason}`);
+      const previousSong = previousById.get(file.id);
+      if (previousSong) importedSongs.push(addDriveFileMetadata(previousSong, file));
     });
   }
   const oversizedAudios = driveAudios.filter(track => Number(track.size) > MAX_DRIVE_AUDIO_SIZE);
-  const playableDriveAudios = driveAudios.filter(track => Number(track.size) <= MAX_DRIVE_AUDIO_SIZE || !track.size);
-  audioAssets = [...audioAssets.filter(track => !track.drive), ...playableDriveAudios];
-  const previousDriveSongs = loadCachedDriveSongs() || [];
-  const previousById = new Map(previousDriveSongs.map(song => [song.driveFileId, song]));
+  const previousDriveAudios = await loadCachedDriveAudio();
+  const previousAudioById = new Map(previousDriveAudios.map(track => [track.id, track]));
+  const syncedDriveAudios = driveAudios.map(track => {
+    const previousTrack = previousAudioById.get(track.id);
+    return previousTrack
+      ? { ...previousTrack, ...track }
+      : track;
+  });
+  await saveCachedDriveAudio(syncedDriveAudios);
+  const shouldApplyDriveSongs = importedSongs.length > 0;
+  if (shouldApplyDriveSongs) {
+    await saveCachedDriveSongs(importedSongs);
+  }
   const edits = loadSongEdits();
   let discardedEdits = false;
   for (const song of importedSongs) {
@@ -1532,26 +1655,50 @@ async function syncGoogleDrive(onProgress = () => {}) {
     }
   }
   const localOnlySongs = loadCachedLocalSongs().filter(song => !song.driveFileId);
-  songs = applySongEdits([...importedSongs, ...localOnlySongs]);
-  sundaySongIds = sundaySongIds.filter(id => songs.some(song => song.id === id));
-  saveSundaySetlist();
-  hasDriveCatalog = true;
-  document.querySelector("#drive-status").textContent = "Sincronizado com Google Drive";
-  document.querySelector("#drive-sync-label").textContent = "Sincronizar Drive";
-  saveCachedDriveSongs(importedSongs);
-  renderCatalog(searchInput.value);
-  if (songs.length) selectSong(songs[0].id);
+  audioAssets = [...audioAssets.filter(track => !track.drive), ...syncedDriveAudios];
+  if (shouldApplyDriveSongs) {
+    songs = applySongEdits([...importedSongs, ...localOnlySongs]);
+    sundaySongIds = sundaySongIds.filter(id => songs.some(song => song.id === id));
+    saveSundaySetlist();
+    hasDriveCatalog = true;
+    renderCatalog(searchInput.value);
+    if (songs.length) selectSong(songs[0].id);
+  } else if (currentSong()) {
+    renderVoiceAudio(currentSong());
+  }
+  lastDriveSyncAt = Date.now();
 
   const unsupported = files.length - candidates.length - driveAudios.length;
   const notices = [];
+  if (candidates.length === 0) notices.push("Nenhuma cifra compatível foi encontrada; o catálogo que já estava neste dispositivo foi mantido.");
   if (oversizedAudios.length) notices.push(`${oversizedAudios.length} áudio(s) excedem 100 MB e não poderão ser reproduzidos no navegador.`);
   if (failures.length) notices.push(`${failures.length} arquivo(s) não importado(s): ${failures.join(" | ")}`);
   if (unsupported) notices.push(`${unsupported} arquivo(s) em formato não compatível foram ignorados.`);
+  const status = shouldApplyDriveSongs
+    ? `${importedSongs.length} cifras e ${syncedDriveAudios.length} áudios`
+    : `${previousDriveSongs.length} cifras mantidas · ${syncedDriveAudios.length} áudios`;
+  const statusDetails = [
+    status,
+    `${notices.length} aviso(s)`,
+    "atualiza a cada minuto"
+  ];
+  document.querySelector("#drive-status").textContent = notices.length
+    ? statusDetails.join(" · ")
+    : `${status} · atualiza a cada minuto`;
+  document.querySelector("#drive-status").title = notices.join("\n");
+  document.querySelector("#drive-status").setAttribute(
+    "aria-label",
+    notices.length ? `${statusDetails.join(". ")}. Ative para ler os detalhes.` : `${status} · atualiza a cada minuto`
+  );
+  document.querySelector("#drive-sync-label").textContent = "Atualizar Drive";
   if (notices.length) {
     console.warn("Resultado parcial da sincronização do Drive.", notices);
-    showToast(`Sincronizadas ${importedSongs.length} músicas e ${playableDriveAudios.length} áudios; ${failures.length + unsupported} arquivo(s) precisam de atenção.`);
-  } else showToast(`${importedSongs.length} música(s) e ${playableDriveAudios.length} áudio(s) sincronizados do Google Drive.`);
-  document.querySelector("#drive-status").textContent = `${importedSongs.length} cifras e ${playableDriveAudios.length} áudios do Drive`;
+    if (!quiet) showToast(importedSongs.length
+        ? `Atualizados ${importedSongs.length} cifras e ${syncedDriveAudios.length} áudios; toque no status do Drive para ver os problemas.`
+        : `Nenhuma cifra foi lida; ${syncedDriveAudios.length} áudios encontrados. Toque no status do Drive para ver os problemas.`);
+  } else {
+    if (!quiet) showToast(`${importedSongs.length} cifra(s) e ${syncedDriveAudios.length} áudio(s) atualizados.`);
+  }
 }
 
 function stopAutoScroll() {
@@ -1706,30 +1853,88 @@ document.querySelector("#voice-audio-replace-input").addEventListener("change", 
     delete input.dataset.trackId;
   }
 });
-async function handleDriveSync(event) {
-  if (currentRole !== "admin") return;
-  document.querySelector("#drive-sync-button").disabled = true;
+function stopDriveAutoSync() {
+  if (driveSyncTimer !== null) {
+    clearInterval(driveSyncTimer);
+    driveSyncTimer = null;
+  }
+}
+
+async function refreshDriveInBackground() {
+  if (!currentRole || document.hidden || !navigator.onLine || driveSyncPromise || driveAutoSyncRunning) return;
+  const { googleClientId } = window.SOUND_ASAPH_CONFIG || {};
+  if (!googleClientId) return;
+  driveAutoSyncRunning = true;
+  try {
+    let accessToken = driveAccessToken;
+    if (!accessToken || Date.now() >= driveAccessTokenExpiresAt - 60_000) {
+      accessToken = await requestDriveAccessToken(googleClientId);
+    }
+    await syncGoogleDrive(accessToken, () => {}, true);
+  } catch (error) {
+    console.error("A atualização automática do Google Drive falhou.", error);
+    const status = document.querySelector("#drive-status");
+    status.textContent = hasDriveCatalog
+      ? "Drive sem atualização · toque para reconectar"
+      : "Falha na atualização automática · toque para tentar";
+    status.title = error.message || "Não foi possível atualizar o catálogo do Drive.";
+    status.setAttribute("aria-label", `${status.textContent}. Toque para ver detalhes.`);
+    document.querySelector("#drive-sync-label").textContent = "Reconectar Drive";
+  } finally {
+    driveAutoSyncRunning = false;
+  }
+}
+
+function startDriveAutoSync() {
+  stopDriveAutoSync();
+  driveSyncTimer = setInterval(refreshDriveInBackground, DRIVE_SYNC_INTERVAL_MS);
+}
+
+async function handleDriveSync() {
+  if (!currentRole) return;
+  const button = document.querySelector("#drive-sync-button");
+  button.disabled = true;
   const syncLabel = document.querySelector("#drive-sync-label");
   syncLabel.textContent = "Conectando ao Drive...";
   document.querySelector("#drive-status").textContent = "Aguardando autorização do Google...";
+  document.querySelector("#drive-status").title = "";
   try {
-    await syncGoogleDrive(status => {
+    const { googleClientId } = window.SOUND_ASAPH_CONFIG || {};
+    if (!googleClientId) throw new Error("Preencha googleClientId em drive-config.js antes de conectar.");
+    const accessToken = await requestDriveAccessToken(googleClientId);
+    await syncGoogleDrive(accessToken, status => {
       syncLabel.textContent = status;
       document.querySelector("#drive-status").textContent = status;
     });
+    startDriveAutoSync();
   } catch (error) {
     console.error("Não foi possível sincronizar o Google Drive.", error);
     document.querySelector("#drive-status").textContent = "Falha ao sincronizar com o Google Drive";
+    document.querySelector("#drive-status").title = error.message || "Não foi possível sincronizar o Google Drive.";
+    document.querySelector("#drive-status").setAttribute(
+      "aria-label",
+      `Falha ao sincronizar com o Google Drive. ${document.querySelector("#drive-status").title}`
+    );
     syncLabel.textContent = "Tentar novamente";
     showToast(error.message || "Não foi possível sincronizar o Google Drive.");
   } finally {
     if (document.querySelector("#drive-status").textContent !== "Falha ao sincronizar com o Google Drive") {
-      document.querySelector("#drive-sync-label").textContent = hasDriveCatalog ? "Sincronizar Drive" : "Conectar Drive";
+      document.querySelector("#drive-sync-label").textContent = driveAccessToken ? "Atualizar Drive" : "Conectar Drive";
     }
-    document.querySelector("#drive-sync-button").disabled = false;
+    button.disabled = false;
   }
 }
 document.querySelector("#drive-sync-button").addEventListener("click", handleDriveSync);
+document.querySelector("#drive-status").addEventListener("click", event => {
+  const status = event.currentTarget;
+  if (status.title) showToast(status.title);
+});
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && lastDriveSyncAt && Date.now() - lastDriveSyncAt >= DRIVE_SYNC_INTERVAL_MS) {
+    refreshDriveInBackground();
+  }
+});
+window.addEventListener("online", refreshDriveInBackground);
 document.querySelector("#mobile-menu").addEventListener("click", event => {
   const open = !document.querySelector("#catalog").classList.contains("open");
   setCatalogOpen(open);
@@ -1785,21 +1990,32 @@ Promise.all([
     ]);
     if (!Array.isArray(data) || data.length === 0) throw new Error("O catálogo não contém músicas.");
     if (!Array.isArray(folderSongs)) throw new Error("O catálogo local não é válido.");
+    let cachedDriveAudios = [];
     try {
-      audioAssets = await loadLocalAudioAssets();
+      cachedDriveAudios = await loadCachedDriveAudio();
+    } catch (error) {
+      console.error("Não foi possível carregar a lista de áudios do Drive.", error);
+      showToast(error.message || "Os áudios do Drive não foram carregados neste dispositivo.");
+    }
+    try {
+      audioAssets = [...cachedDriveAudios, ...await loadLocalAudioAssets()];
     } catch (error) {
       console.error("Não foi possível carregar os áudios salvos neste navegador.", error);
-      audioAssets = [];
+      audioAssets = cachedDriveAudios;
       showToast(error.message || "Os áudios adicionados neste navegador não foram carregados.");
     }
-    const cachedDriveSongs = loadCachedDriveSongs();
+    const cachedDriveSongs = await loadCachedDriveSongs();
     bundledFolderSongs = folderSongs;
     const initialSongs = cachedDriveSongs !== null ? cachedDriveSongs : [...data, ...bundledFolderSongs];
     songs = applySongEdits([...initialSongs, ...loadCachedLocalSongs()]);
     hasDriveCatalog = cachedDriveSongs !== null;
     if (cachedDriveSongs !== null) {
-      document.querySelector("#drive-status").textContent = "Cifras sincronizadas neste dispositivo";
-      document.querySelector("#drive-sync-label").textContent = "Sincronizar Drive";
+      document.querySelector("#drive-status").textContent =
+        `${cachedDriveSongs.length} cifras e ${cachedDriveAudios.length} áudios guardados`;
+      document.querySelector("#drive-sync-label").textContent = "Conectar Drive";
+    } else if (cachedDriveAudios.length) {
+      document.querySelector("#drive-status").textContent =
+        `${cachedDriveAudios.length} áudios guardados · conecte o Drive`;
     }
     const availableSongs = visibleSongs();
     const currentSetlist = sundaySongIds.length;
