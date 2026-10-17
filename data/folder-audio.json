@@ -1,0 +1,842 @@
+[
+  {
+    "folderId": "musicas-em-preparacao-colossenses-1-da-vida-o-melhor",
+    "audioKey": "colossenses-1-da-vida-o-melhor",
+    "label": "Contralto",
+    "path": "@Músicas em preparação/Colossenses 1 - Da vida o melhor/Tonalidade Lá/Vocal/Contralto - Colossenses 1 e Da Vida, o Melhor - Tonalidade Lá.mp3"
+  },
+  {
+    "folderId": "musicas-em-preparacao-colossenses-1-da-vida-o-melhor",
+    "audioKey": "colossenses-1-da-vida-o-melhor",
+    "label": "Melodia feminina",
+    "path": "@Músicas em preparação/Colossenses 1 - Da vida o melhor/Tonalidade Lá/Vocal/Melodia Feminina- Colossenses 1 e Da Vida, o Melhor - Tonalidade Lá.mp3"
+  },
+  {
+    "folderId": "musicas-em-preparacao-colossenses-1-da-vida-o-melhor",
+    "audioKey": "colossenses-1-da-vida-o-melhor",
+    "label": "Melodia masculina",
+    "path": "@Músicas em preparação/Colossenses 1 - Da vida o melhor/Tonalidade Lá/Vocal/Melodia Masculina - Colossenses 1 e Da Vida, o Melhor - Tonalidade Lá.mp3"
+  },
+  {
+    "folderId": "musicas-em-preparacao-colossenses-1-da-vida-o-melhor",
+    "audioKey": "colossenses-1-da-vida-o-melhor",
+    "label": "Tenor",
+    "path": "@Músicas em preparação/Colossenses 1 - Da vida o melhor/Tonalidade Lá/Vocal/Tenor - Colossenses 1 e Da Vida, o Melhor - Tonalidade Lá.mp3"
+  },
+  {
+    "folderId": "musicas-em-preparacao-doce-nome",
+    "audioKey": "doce-nome",
+    "label": "Contralto",
+    "path": "@Músicas em preparação/Doce nome/Tonalidade - Mi/Vocal/Contralto - Doce Nome - Mi.mp3"
+  },
+  {
+    "folderId": "musicas-em-preparacao-doce-nome",
+    "audioKey": "doce-nome",
+    "label": "Melodia",
+    "path": "@Músicas em preparação/Doce nome/Tonalidade - Mi/Vocal/Melodia - Doce nome - Mi.mp3"
+  },
+  {
+    "folderId": "musicas-em-preparacao-doce-nome",
+    "audioKey": "doce-nome",
+    "label": "Tenor",
+    "path": "@Músicas em preparação/Doce nome/Tonalidade - Mi/Vocal/Tenor - Doce nome - Mi.mp3"
+  },
+  {
+    "folderId": "musicas-em-preparacao-meu-refugio",
+    "audioKey": "meu-refugio",
+    "label": "Contralto",
+    "path": "@Músicas em preparação/Meu refúgio/Tonalidade Dó/áudios vocal/Meu Refúgio (Dó) - contralto.mp4"
+  },
+  {
+    "folderId": "musicas-em-preparacao-meu-refugio",
+    "audioKey": "meu-refugio",
+    "label": "Melodia",
+    "path": "@Músicas em preparação/Meu refúgio/Tonalidade Dó/áudios vocal/Meu Refúgio (Dó) - melodia.mp4"
+  },
+  {
+    "folderId": "musicas-em-preparacao-meu-refugio",
+    "audioKey": "meu-refugio",
+    "label": "Tenor",
+    "path": "@Músicas em preparação/Meu refúgio/Tonalidade Dó/áudios vocal/Meu Refúgio (Dó) - tenor.mp4"
+  },
+  {
+    "folderId": "musicas-em-preparacao-poder-pra-salvar",
+    "audioKey": "poder-pra-salvar",
+    "label": "Contralto",
+    "path": "@Músicas em preparação/Poder pra salvar/Tonalidade - Mi/Vocal/Contralto - Poder pra salvar (Mi).mp3"
+  },
+  {
+    "folderId": "musicas-em-preparacao-poder-pra-salvar",
+    "audioKey": "poder-pra-salvar",
+    "label": "Melodia",
+    "path": "@Músicas em preparação/Poder pra salvar/Tonalidade - Mi/Vocal/Melodia - Poder pra salvar (Mi).mp3"
+  },
+  {
+    "folderId": "musicas-em-preparacao-poder-pra-salvar",
+    "audioKey": "poder-pra-salvar",
+    "label": "Tenor",
+    "path": "@Músicas em preparação/Poder pra salvar/Tonalidade - Mi/Vocal/Tenor- Poder pra salvar (Mi).mp3"
+  },
+  {
+    "folderId": "musicas-em-preparacao-venho-senhor-minha-vida-oferecer",
+    "audioKey": "venho-senhor-minha-vida-oferecer",
+    "label": "Contralto",
+    "path": "@Músicas em preparação/Venho, Senhor, minha vida oferecer/Tonalidade Mi/Vocal/Contralto - Venho, Senhor - Mi.mp3"
+  },
+  {
+    "folderId": "musicas-em-preparacao-venho-senhor-minha-vida-oferecer",
+    "audioKey": "venho-senhor-minha-vida-oferecer",
+    "label": "Melodia",
+    "path": "@Músicas em preparação/Venho, Senhor, minha vida oferecer/Tonalidade Mi/Vocal/Melodia - Venho, Senhor - Mi.mp3"
+  },
+  {
+    "folderId": "musicas-em-preparacao-venho-senhor-minha-vida-oferecer",
+    "audioKey": "venho-senhor-minha-vida-oferecer",
+    "label": "Tenor",
+    "path": "@Músicas em preparação/Venho, Senhor, minha vida oferecer/Tonalidade Mi/Vocal/Tenor - Venho, Senhor - Mi.mp3"
+  },
+  {
+    "folderId": "aclame-ao-senhor-tonalidade-la",
+    "audioKey": "aclame-ao-senhor",
+    "label": "Contralto",
+    "path": "Aclame ao Senhor/Tonalidade Lá/Vocal/Contralto - Aclame ao Senhor - Lá.mp3"
+  },
+  {
+    "folderId": "aclame-ao-senhor-tonalidade-la",
+    "audioKey": "aclame-ao-senhor",
+    "label": "Melodia",
+    "path": "Aclame ao Senhor/Tonalidade Lá/Vocal/Melodia - Aclame ao Senhor - Lá.mp3"
+  },
+  {
+    "folderId": "aclame-ao-senhor-tonalidade-la",
+    "audioKey": "aclame-ao-senhor",
+    "label": "Tenor",
+    "path": "Aclame ao Senhor/Tonalidade Lá/Vocal/Tenor - Aclame ao Senhor - Lá.mp3"
+  },
+  {
+    "folderId": "aguardo-o-dia-tonalidade-sol",
+    "audioKey": "aguardo-o-dia",
+    "label": "Contralto",
+    "path": "Aguardo o dia/Tonalidade Sol/áudios vocal/Contralto - Aguardo o dia - Sol.mp3"
+  },
+  {
+    "folderId": "aguardo-o-dia-tonalidade-sol",
+    "audioKey": "aguardo-o-dia",
+    "label": "Melodia",
+    "path": "Aguardo o dia/Tonalidade Sol/áudios vocal/Melodia - Aguardo o dia - Sol.mp3"
+  },
+  {
+    "folderId": "aguardo-o-dia-tonalidade-sol",
+    "audioKey": "aguardo-o-dia",
+    "label": "Tenor",
+    "path": "Aguardo o dia/Tonalidade Sol/áudios vocal/Tenor - Aguardo o dia - Sol.mp3"
+  },
+  {
+    "folderId": "bondade-de-deus-tonalidade-la",
+    "audioKey": "bondade-de-deus",
+    "label": "Contralto",
+    "path": "Bondade de Deus/Tonalidade Lá/Vocal/Contralto - Bondade de Deus - Lá.mp3"
+  },
+  {
+    "folderId": "bondade-de-deus-tonalidade-la",
+    "audioKey": "bondade-de-deus",
+    "label": "Melodia",
+    "path": "Bondade de Deus/Tonalidade Lá/Vocal/Melodia - Bondade de Deus - Lá.mp3"
+  },
+  {
+    "folderId": "bondade-de-deus-tonalidade-la",
+    "audioKey": "bondade-de-deus",
+    "label": "Tenor",
+    "path": "Bondade de Deus/Tonalidade Lá/Vocal/Tenor - Bondade de Deus - Lá.mp3"
+  },
+  {
+    "folderId": "cantai-ao-senhor-vocal",
+    "audioKey": "cantai-ao-senhor",
+    "label": "Contralto",
+    "path": "Cantai ao Senhor/Vocal/Contralto.mp3"
+  },
+  {
+    "folderId": "cantai-ao-senhor-vocal",
+    "audioKey": "cantai-ao-senhor",
+    "label": "Melodia",
+    "path": "Cantai ao Senhor/Vocal/Melodia.mp3"
+  },
+  {
+    "folderId": "cantai-ao-senhor-vocal",
+    "audioKey": "cantai-ao-senhor",
+    "label": "Tenor",
+    "path": "Cantai ao Senhor/Vocal/Tenor.mp3"
+  },
+  {
+    "folderId": "comeco-meio-e-fim-tonalidade-re",
+    "audioKey": "comeco-meio-e-fim",
+    "label": "Contralto",
+    "path": "Começo, Meio e Fim/Tonalidade Ré/Vocal/Contralto - Começo, Meio e Fim - Tonalidade Ré.mp3"
+  },
+  {
+    "folderId": "comeco-meio-e-fim-tonalidade-re",
+    "audioKey": "comeco-meio-e-fim",
+    "label": "Melodia",
+    "path": "Começo, Meio e Fim/Tonalidade Ré/Vocal/Melodia - Começo, Meio e Fim - Tonalidade Ré.mp3"
+  },
+  {
+    "folderId": "comeco-meio-e-fim-tonalidade-re",
+    "audioKey": "comeco-meio-e-fim",
+    "label": "Tenor",
+    "path": "Começo, Meio e Fim/Tonalidade Ré/Vocal/Tenor - Começo, Meio e Fim - Tonalidade Ré.mp3"
+  },
+  {
+    "folderId": "cordeiro-que-sofreu-tonalidade-do",
+    "audioKey": "cordeiro-que-sofreu",
+    "label": "Melodia",
+    "path": "Cordeiro que sofreu/Tonalidade Dó/Instrumental/Melodia - Cordeiro que sofreu - Dó.mp3"
+  },
+  {
+    "folderId": "cordeiro-que-sofreu-tonalidade-do",
+    "audioKey": "cordeiro-que-sofreu",
+    "label": "Contralto",
+    "path": "Cordeiro que sofreu/Tonalidade Dó/Vocal/Contralto - Cordeiro que Sofreu - Dó.mp3"
+  },
+  {
+    "folderId": "cordeiro-que-sofreu-tonalidade-do",
+    "audioKey": "cordeiro-que-sofreu",
+    "label": "Melodia",
+    "path": "Cordeiro que sofreu/Tonalidade Dó/Vocal/Melodia - Cordeiro que sofreu - Dó.mp3"
+  },
+  {
+    "folderId": "cordeiro-que-sofreu-tonalidade-do",
+    "audioKey": "cordeiro-que-sofreu",
+    "label": "Tenor",
+    "path": "Cordeiro que sofreu/Tonalidade Dó/Vocal/Tenor - Cordeiro que sofreu - Dó.mp3"
+  },
+  {
+    "folderId": "descansarei-tonalidade-la",
+    "audioKey": "descansarei",
+    "label": "Contralto",
+    "path": "Descansarei/Tonalidade Lá/Vocal/Contralto - Descansarei - Lá.mp3"
+  },
+  {
+    "folderId": "descansarei-tonalidade-la",
+    "audioKey": "descansarei",
+    "label": "Melodia",
+    "path": "Descansarei/Tonalidade Lá/Vocal/Melodia - Descansarei - Lá.mp3"
+  },
+  {
+    "folderId": "descansarei-tonalidade-la",
+    "audioKey": "descansarei",
+    "label": "Tenor",
+    "path": "Descansarei/Tonalidade Lá/Vocal/Tenor - Descansarei - Lá.mp3"
+  },
+  {
+    "folderId": "desde-os-confins-da-terra-tonalidade-mi",
+    "audioKey": "desde-os-confins-da-terra",
+    "label": "Contralto",
+    "path": "Desde os confins da terra/Tonalidade Mi/Vocal/Contralto - Desde os Confins da Terra - Mi.mp3"
+  },
+  {
+    "folderId": "desde-os-confins-da-terra-tonalidade-mi",
+    "audioKey": "desde-os-confins-da-terra",
+    "label": "Melodia feminina",
+    "path": "Desde os confins da terra/Tonalidade Mi/Vocal/Melodia Feminina - Desde os Confins da Terra - Mi.mp3"
+  },
+  {
+    "folderId": "desde-os-confins-da-terra-tonalidade-mi",
+    "audioKey": "desde-os-confins-da-terra",
+    "label": "Melodia masculina",
+    "path": "Desde os confins da terra/Tonalidade Mi/Vocal/Melodia Masculina - Desde os Confins da Terra - Mi.mp3"
+  },
+  {
+    "folderId": "desde-os-confins-da-terra-tonalidade-mi",
+    "audioKey": "desde-os-confins-da-terra",
+    "label": "Tenor",
+    "path": "Desde os confins da terra/Tonalidade Mi/Vocal/Tenor - Desde os Confins da Terra - Mi.mp3"
+  },
+  {
+    "folderId": "digno-e-o-senhor-tonalidade-sol",
+    "audioKey": "digno-e-o-senhor",
+    "label": "Contralto",
+    "path": "Digno é o Senhor/Tonalidade Sol/Vocal/Contralto - Digno é o Senhor.mp3"
+  },
+  {
+    "folderId": "digno-e-o-senhor-tonalidade-sol",
+    "audioKey": "digno-e-o-senhor",
+    "label": "Tenor",
+    "path": "Digno é o Senhor/Tonalidade Sol/Vocal/Tenor - Digno é o Senhor.mp3"
+  },
+  {
+    "folderId": "digno-es-de-gloria-tonalidade-la",
+    "audioKey": "digno-es-de-gloria",
+    "label": "Contralto",
+    "path": "Digno és de glória/Tonalidade Lá/Vocal/Contralto - Digno És de Glória - Lá.mp3"
+  },
+  {
+    "folderId": "digno-es-de-gloria-tonalidade-la",
+    "audioKey": "digno-es-de-gloria",
+    "label": "Melodia",
+    "path": "Digno és de glória/Tonalidade Lá/Vocal/Melodia - Digno És de Glória - Lá.mp3"
+  },
+  {
+    "folderId": "digno-es-de-gloria-tonalidade-la",
+    "audioKey": "digno-es-de-gloria",
+    "label": "Tenor",
+    "path": "Digno és de glória/Tonalidade Lá/Vocal/Tenor - Digno És de Glória - Lá.mp3"
+  },
+  {
+    "folderId": "ele-e-exaltado-tonalidade-mi",
+    "audioKey": "ele-e-exaltado",
+    "label": "Contralto",
+    "path": "Ele é exaltado/Tonalidade Mi/Vocal/Contralto - Ele é exaltado - Tonalidade Lá.mp3"
+  },
+  {
+    "folderId": "ele-e-exaltado-tonalidade-mi",
+    "audioKey": "ele-e-exaltado",
+    "label": "Melodia",
+    "path": "Ele é exaltado/Tonalidade Mi/Vocal/Melodia - Ele é exaltado - Tonalidade Lá.mp3"
+  },
+  {
+    "folderId": "ele-e-exaltado-tonalidade-mi",
+    "audioKey": "ele-e-exaltado",
+    "label": "Tenor",
+    "path": "Ele é exaltado/Tonalidade Mi/Vocal/Tenor - Ele é exaltado - Tonalidade Lá.mp3"
+  },
+  {
+    "folderId": "em-teus-bracos-tonalidade-re",
+    "audioKey": "em-teus-bracos",
+    "label": "Contralto",
+    "path": "Em Teus braços/Tonalidade Ré/Vocal/Contralto_-_Em_Teus_Braços_-_Ré.mp3"
+  },
+  {
+    "folderId": "em-teus-bracos-tonalidade-re",
+    "audioKey": "em-teus-bracos",
+    "label": "Melodia",
+    "path": "Em Teus braços/Tonalidade Ré/Vocal/Melodia - Em Teus Braços - Ré.mp3"
+  },
+  {
+    "folderId": "em-teus-bracos-tonalidade-re",
+    "audioKey": "em-teus-bracos",
+    "label": "Melodia",
+    "path": "Em Teus braços/Tonalidade Ré/Vocal/Melodia_-_Em_Teus_Braços_-_Ré.mp3"
+  },
+  {
+    "folderId": "em-teus-bracos-tonalidade-re",
+    "audioKey": "em-teus-bracos",
+    "label": "Tenor",
+    "path": "Em Teus braços/Tonalidade Ré/Vocal/Tenor_-_Em_Teus_Braços_-_Ré.mp3"
+  },
+  {
+    "folderId": "es-o-rei-que-vem-tonalidade-d-re",
+    "audioKey": "es-o-rei-que-vem",
+    "label": "Contralto",
+    "path": "És o Rei que vem/Tonalidade - D (Ré)/És o rei que vem - Contralto.mp3"
+  },
+  {
+    "folderId": "es-o-rei-que-vem-tonalidade-d-re",
+    "audioKey": "es-o-rei-que-vem",
+    "label": "Melodia",
+    "path": "És o Rei que vem/Tonalidade - D (Ré)/És o rei que vem - Melodia.mp3"
+  },
+  {
+    "folderId": "es-o-rei-que-vem-tonalidade-d-re",
+    "audioKey": "es-o-rei-que-vem",
+    "label": "Tenor",
+    "path": "És o Rei que vem/Tonalidade - D (Ré)/És o rei que vem - Tenor.mp3"
+  },
+  {
+    "folderId": "eu-te-quero-tonalidade-d-re",
+    "audioKey": "eu-te-quero",
+    "label": "Contralto",
+    "path": "Eu te Quero/Tonalidade - D(ré)/Eu te quero - Contralto.mp3"
+  },
+  {
+    "folderId": "eu-te-quero-tonalidade-d-re",
+    "audioKey": "eu-te-quero",
+    "label": "Melodia",
+    "path": "Eu te Quero/Tonalidade - D(ré)/Eu te quero - Melodia.mp3"
+  },
+  {
+    "folderId": "eu-te-quero-tonalidade-d-re",
+    "audioKey": "eu-te-quero",
+    "label": "Tenor",
+    "path": "Eu te Quero/Tonalidade - D(ré)/Eu te quero - Tenor.mp3"
+  },
+  {
+    "folderId": "graca-soberana-me-tocou-tonalidade-do",
+    "audioKey": "graca-soberana-me-tocou",
+    "label": "Contralto",
+    "path": "Graça soberana me tocou/Tonalidade - Dó/Vocal/Contralto - Graça soberana me tocou - Dó.mp3"
+  },
+  {
+    "folderId": "graca-soberana-me-tocou-tonalidade-do",
+    "audioKey": "graca-soberana-me-tocou",
+    "label": "Melodia",
+    "path": "Graça soberana me tocou/Tonalidade - Dó/Vocal/Melodia - Graça soberana me tocou - Dó.mp3"
+  },
+  {
+    "folderId": "graca-soberana-me-tocou-tonalidade-do",
+    "audioKey": "graca-soberana-me-tocou",
+    "label": "Tenor",
+    "path": "Graça soberana me tocou/Tonalidade - Dó/Vocal/Tenor - Graça soberana me tocou - Dó.mp3"
+  },
+  {
+    "folderId": "gracas-dou-tonalidade-re",
+    "audioKey": "gracas-dou",
+    "label": "Contralto",
+    "path": "Graças dou/Tonalidade - Ré/Vocal/Contralto - Graças dou - Ré.mp3"
+  },
+  {
+    "folderId": "gracas-dou-tonalidade-re",
+    "audioKey": "gracas-dou",
+    "label": "Melodia",
+    "path": "Graças dou/Tonalidade - Ré/Vocal/Melodia - Graças dou - Ré.mp3"
+  },
+  {
+    "folderId": "gracas-dou-tonalidade-re",
+    "audioKey": "gracas-dou",
+    "label": "Tenor",
+    "path": "Graças dou/Tonalidade - Ré/Vocal/Tenor - Graças dou - Ré.mp3"
+  },
+  {
+    "folderId": "maranata-tonalidade-re",
+    "audioKey": "maranata",
+    "label": "Contralto",
+    "path": "Maranata/tonalidade - ré/áudios vocal/Contralto - Maranata - Ré.mp3"
+  },
+  {
+    "folderId": "maranata-tonalidade-re",
+    "audioKey": "maranata",
+    "label": "Melodia",
+    "path": "Maranata/tonalidade - ré/áudios vocal/Melodia - Maranata - Ré.mp3"
+  },
+  {
+    "folderId": "maranata-tonalidade-re",
+    "audioKey": "maranata",
+    "label": "Tenor",
+    "path": "Maranata/tonalidade - ré/áudios vocal/Tenor - Maranata - Ré.mp3"
+  },
+  {
+    "folderId": "maravilhosa-graca-tonalidade-re",
+    "audioKey": "maravilhosa-graca",
+    "label": "Contralto",
+    "path": "Maravilhosa graça/Tonalidade Ré/áudios vocal/Contralto - Maravilhosa Graça - Ré.mp3"
+  },
+  {
+    "folderId": "maravilhosa-graca-tonalidade-re",
+    "audioKey": "maravilhosa-graca",
+    "label": "Melodia",
+    "path": "Maravilhosa graça/Tonalidade Ré/áudios vocal/Melodia - Maravilhosa Graça - Ré.mp3"
+  },
+  {
+    "folderId": "maravilhosa-graca-tonalidade-re",
+    "audioKey": "maravilhosa-graca",
+    "label": "Tenor",
+    "path": "Maravilhosa graça/Tonalidade Ré/áudios vocal/Tenor - Maravilhosa Graça - Ré.mp3"
+  },
+  {
+    "folderId": "me-derramar-tonalidade-do",
+    "audioKey": "me-derramar",
+    "label": "Contralto",
+    "path": "Me derramar/Tonalidade - Dó/Vocal/Contralto - Me Derramar - Dó.mp3"
+  },
+  {
+    "folderId": "me-derramar-tonalidade-do",
+    "audioKey": "me-derramar",
+    "label": "Melodia",
+    "path": "Me derramar/Tonalidade - Dó/Vocal/Melodia - Me Derramar - Dó.mp3"
+  },
+  {
+    "folderId": "me-derramar-tonalidade-do",
+    "audioKey": "me-derramar",
+    "label": "Tenor",
+    "path": "Me derramar/Tonalidade - Dó/Vocal/Tenor - Me Derramar - Dó.mp3"
+  },
+  {
+    "folderId": "me-rendo-a-ti-tonalidade-sol",
+    "audioKey": "me-rendo-a-ti",
+    "label": "Contralto",
+    "path": "Me rendo a Ti/Tonalidade Sol/áudios vocal/me-rendo-a-ti-contralto.mp3"
+  },
+  {
+    "folderId": "me-rendo-a-ti-tonalidade-sol",
+    "audioKey": "me-rendo-a-ti",
+    "label": "Melodia",
+    "path": "Me rendo a Ti/Tonalidade Sol/áudios vocal/me-rendo-a-ti-melodia.mp3"
+  },
+  {
+    "folderId": "me-rendo-a-ti-tonalidade-sol",
+    "audioKey": "me-rendo-a-ti",
+    "label": "Tenor",
+    "path": "Me rendo a Ti/Tonalidade Sol/áudios vocal/me-rendo-a-ti-tenor.mp3"
+  },
+  {
+    "folderId": "meu-pastor-tonalidade-do",
+    "audioKey": "meu-pastor",
+    "label": "Contralto",
+    "path": "Meu Pastor/Tonalidade Dó/Vocal/Contralto-Meu-Pastor-Tonalidade-Dó.mp3"
+  },
+  {
+    "folderId": "meu-pastor-tonalidade-do",
+    "audioKey": "meu-pastor",
+    "label": "Melodia",
+    "path": "Meu Pastor/Tonalidade Dó/Vocal/Melodia-Meu-Pastor-Tonalidade-Dó.mp3"
+  },
+  {
+    "folderId": "meu-pastor-tonalidade-do",
+    "audioKey": "meu-pastor",
+    "label": "Tenor",
+    "path": "Meu Pastor/Tonalidade Dó/Vocal/Tenor-Meu-Pastor-Tonalidade-Dó.mp3"
+  },
+  {
+    "folderId": "meu-prazer-pra-te-adorar-tonalidade-sol",
+    "audioKey": "meu-prazer",
+    "label": "Contralto",
+    "path": "Meu prazer (Pra Te adorar)/Tonalidade - Sol/áudios vocal/Contralto - Pra Te Adorar - Sol.mp3"
+  },
+  {
+    "folderId": "meu-prazer-pra-te-adorar-tonalidade-sol",
+    "audioKey": "meu-prazer",
+    "label": "Melodia",
+    "path": "Meu prazer (Pra Te adorar)/Tonalidade - Sol/áudios vocal/Melodia - Pra Te Adorar - Sol.mp3"
+  },
+  {
+    "folderId": "meu-prazer-pra-te-adorar-tonalidade-sol",
+    "audioKey": "meu-prazer",
+    "label": "Tenor",
+    "path": "Meu prazer (Pra Te adorar)/Tonalidade - Sol/áudios vocal/Tenor - Pra Te Adorar - Sol.mp3"
+  },
+  {
+    "folderId": "nas-estrelas-tonalidade-sol",
+    "audioKey": "nas-estrelas",
+    "label": "Contralto",
+    "path": "Nas estrelas/Tonalidade Sol/Vocal/Nas estrelas - Contralto.mp3"
+  },
+  {
+    "folderId": "nas-estrelas-tonalidade-sol",
+    "audioKey": "nas-estrelas",
+    "label": "Melodia",
+    "path": "Nas estrelas/Tonalidade Sol/Vocal/Nas estrelas - Melodia.mp3"
+  },
+  {
+    "folderId": "nas-estrelas-tonalidade-sol",
+    "audioKey": "nas-estrelas",
+    "label": "Tenor",
+    "path": "Nas estrelas/Tonalidade Sol/Vocal/Nas estrelas - Tenor.mp3"
+  },
+  {
+    "folderId": "nosso-deus-tonalidade-re",
+    "audioKey": "nosso-deus",
+    "label": "Contralto",
+    "path": "Nosso Deus/Tonalidade - Ré/Vocal/Contralto - Nosso Deus - Ré.mp3"
+  },
+  {
+    "folderId": "nosso-deus-tonalidade-re",
+    "audioKey": "nosso-deus",
+    "label": "Melodia",
+    "path": "Nosso Deus/Tonalidade - Ré/Vocal/Melodia - Nosso Deus - Ré.mp3"
+  },
+  {
+    "folderId": "nosso-deus-tonalidade-re",
+    "audioKey": "nosso-deus",
+    "label": "Tenor",
+    "path": "Nosso Deus/Tonalidade - Ré/Vocal/Tenor - Nosso Deus - Ré.mp3"
+  },
+  {
+    "folderId": "nunca-me-deixou-tonalidade-sol",
+    "audioKey": "nunca-me-deixou",
+    "label": "Contralto",
+    "path": "Nunca me deixou/Tonalidade Sol/Vocal/Nunca me deixou - Contralto.mp3"
+  },
+  {
+    "folderId": "nunca-me-deixou-tonalidade-sol",
+    "audioKey": "nunca-me-deixou",
+    "label": "Melodia",
+    "path": "Nunca me deixou/Tonalidade Sol/Vocal/Nunca me deixou - Melodia.mp3"
+  },
+  {
+    "folderId": "nunca-me-deixou-tonalidade-sol",
+    "audioKey": "nunca-me-deixou",
+    "label": "Tenor",
+    "path": "Nunca me deixou/Tonalidade Sol/Vocal/Nunca me deixou - Tenor.mp3"
+  },
+  {
+    "folderId": "o-amor-de-deus-logo-eu-tonalidade-sol",
+    "audioKey": "o-amor-de-deus",
+    "label": "Contralto",
+    "path": "O Amor de Deus (Logo Eu)/Tonalidade - Sol/Vocal/Contralto - O amor de Deus - Sol.mp3"
+  },
+  {
+    "folderId": "o-amor-de-deus-logo-eu-tonalidade-sol",
+    "audioKey": "o-amor-de-deus",
+    "label": "Melodia feminina",
+    "path": "O Amor de Deus (Logo Eu)/Tonalidade - Sol/Vocal/Melodia Feminina - O amor de Deus - Sol.mp3"
+  },
+  {
+    "folderId": "o-amor-de-deus-logo-eu-tonalidade-sol",
+    "audioKey": "o-amor-de-deus",
+    "label": "Melodia masculina",
+    "path": "O Amor de Deus (Logo Eu)/Tonalidade - Sol/Vocal/Melodia Masculina - O amor de Deus - Sol.mp3"
+  },
+  {
+    "folderId": "o-amor-de-deus-logo-eu-tonalidade-sol",
+    "audioKey": "o-amor-de-deus",
+    "label": "Tenor",
+    "path": "O Amor de Deus (Logo Eu)/Tonalidade - Sol/Vocal/Tenor- O amor de Deus - Sol.mp3"
+  },
+  {
+    "folderId": "oceanos-tonalidade-do",
+    "audioKey": "oceanos",
+    "label": "Contralto",
+    "path": "Oceanos/Tonalidade Dó/áudios vocal/Oceanos-_Dó_-contralto.mp3"
+  },
+  {
+    "folderId": "oceanos-tonalidade-do",
+    "audioKey": "oceanos",
+    "label": "Melodia",
+    "path": "Oceanos/Tonalidade Dó/áudios vocal/Oceanos-_Dó_-melodia.mp3"
+  },
+  {
+    "folderId": "oceanos-tonalidade-do",
+    "audioKey": "oceanos",
+    "label": "Tenor",
+    "path": "Oceanos/Tonalidade Dó/áudios vocal/Oceanos-_Dó_-tenor.mp3"
+  },
+  {
+    "folderId": "puro-e-simples-tonalidade-g-sol",
+    "audioKey": "puro-e-simples",
+    "label": "Contralto",
+    "path": "Puro e Simples/Tonalidade G (sol)/Vocal/Contralto - Puro e Simples.mp3"
+  },
+  {
+    "folderId": "puro-e-simples-tonalidade-g-sol",
+    "audioKey": "puro-e-simples",
+    "label": "Melodia",
+    "path": "Puro e Simples/Tonalidade G (sol)/Vocal/Melodia - Puro e Simples.mp3"
+  },
+  {
+    "folderId": "puro-e-simples-tonalidade-g-sol",
+    "audioKey": "puro-e-simples",
+    "label": "Tenor",
+    "path": "Puro e Simples/Tonalidade G (sol)/Vocal/Tenor - Puro e Simples.mp3"
+  },
+  {
+    "folderId": "quebrantado-tonalidade-la",
+    "audioKey": "quebrantado",
+    "label": "Contralto",
+    "path": "Quebrantado/Tonalidade Lá/Vocal/Contralto - Quebrantado - Lá.mp3"
+  },
+  {
+    "folderId": "quebrantado-tonalidade-la",
+    "audioKey": "quebrantado",
+    "label": "Melodia",
+    "path": "Quebrantado/Tonalidade Lá/Vocal/Melodia - Quebrantado - Lá.mp3"
+  },
+  {
+    "folderId": "quebrantado-tonalidade-la",
+    "audioKey": "quebrantado",
+    "label": "Tenor",
+    "path": "Quebrantado/Tonalidade Lá/Vocal/Tenor - Quebrantado - Lá.mp3"
+  },
+  {
+    "folderId": "renova-me-tonalidade-do",
+    "audioKey": "renova-me",
+    "label": "Contralto",
+    "path": "Renova-me/Tonalidade Dó/áudios vocal/Renova-me (Dó) - contralto.mp4"
+  },
+  {
+    "folderId": "renova-me-tonalidade-do",
+    "audioKey": "renova-me",
+    "label": "Melodia",
+    "path": "Renova-me/Tonalidade Dó/áudios vocal/Renova-me (Dó) - melodia.mp4"
+  },
+  {
+    "folderId": "renova-me-tonalidade-do",
+    "audioKey": "renova-me",
+    "label": "Tenor",
+    "path": "Renova-me/Tonalidade Dó/áudios vocal/Renova-me (Dó) - tenor.mp4"
+  },
+  {
+    "folderId": "santo-espirito-tonalidade-mi",
+    "audioKey": "santo-espirito",
+    "label": "Contralto",
+    "path": "Santo Espírito/Tonalidade Mi/áudios vocal/Contralto - Santo Espírito - Mi.mp3"
+  },
+  {
+    "folderId": "santo-espirito-tonalidade-mi",
+    "audioKey": "santo-espirito",
+    "label": "Melodia",
+    "path": "Santo Espírito/Tonalidade Mi/áudios vocal/Melodia - Santo Espírito - Mi.mp3"
+  },
+  {
+    "folderId": "santo-espirito-tonalidade-mi",
+    "audioKey": "santo-espirito",
+    "label": "Tenor",
+    "path": "Santo Espírito/Tonalidade Mi/áudios vocal/Tenor - Santo Espírito - Mi.mp3"
+  },
+  {
+    "folderId": "senhor-tu-es-bom-tonalidade-sol",
+    "audioKey": "senhor-tu-es-bom",
+    "label": "Contralto",
+    "path": "Senhor, Tu és bom/Tonalidade Sol/Vocal/contralto.mp3"
+  },
+  {
+    "folderId": "senhor-tu-es-bom-tonalidade-sol",
+    "audioKey": "senhor-tu-es-bom",
+    "label": "Melodia",
+    "path": "Senhor, Tu és bom/Tonalidade Sol/Vocal/melodia.mp3"
+  },
+  {
+    "folderId": "senhor-tu-es-bom-tonalidade-sol",
+    "audioKey": "senhor-tu-es-bom",
+    "label": "Tenor",
+    "path": "Senhor, Tu és bom/Tonalidade Sol/Vocal/tenor.mp3"
+  },
+  {
+    "folderId": "sonda-me-usa-me-tonalidade-do",
+    "audioKey": "sonda-me-usa-me",
+    "label": "Contralto",
+    "path": "Sonda-me, usa-me/Tonalidade Dó/Vocal/Contralto - Sonda-me - Dó.mp3"
+  },
+  {
+    "folderId": "sonda-me-usa-me-tonalidade-do",
+    "audioKey": "sonda-me-usa-me",
+    "label": "Melodia",
+    "path": "Sonda-me, usa-me/Tonalidade Dó/Vocal/Melodia - Sonda-me - Dó.mp3"
+  },
+  {
+    "folderId": "sonda-me-usa-me-tonalidade-do",
+    "audioKey": "sonda-me-usa-me",
+    "label": "Tenor",
+    "path": "Sonda-me, usa-me/Tonalidade Dó/Vocal/Tenor - Sonda-me - Dó.mp3"
+  },
+  {
+    "folderId": "te-louvarei-tonalidade-sol",
+    "audioKey": "te-louvarei",
+    "label": "Contralto",
+    "path": "Te louvarei/Tonalidade Sol/Vocal/Contralto - Te louvarei - Sol.mp3"
+  },
+  {
+    "folderId": "te-louvarei-tonalidade-sol",
+    "audioKey": "te-louvarei",
+    "label": "Melodia",
+    "path": "Te louvarei/Tonalidade Sol/Vocal/Melodia - Te louvarei - Sol.mp3"
+  },
+  {
+    "folderId": "te-louvarei-tonalidade-sol",
+    "audioKey": "te-louvarei",
+    "label": "Tenor",
+    "path": "Te louvarei/Tonalidade Sol/Vocal/Tenor - Te louvarei - Sol.mp3"
+  },
+  {
+    "folderId": "teu-amor-nao-falha-tonalidade-do",
+    "audioKey": "teu-amor-nao-falha",
+    "label": "Contralto",
+    "path": "Teu amor não falha/Tonalidade Dó/áudios vocal/Contralto - Teu Amor Não Falha - Dó.mp3"
+  },
+  {
+    "folderId": "teu-amor-nao-falha-tonalidade-do",
+    "audioKey": "teu-amor-nao-falha",
+    "label": "Melodia",
+    "path": "Teu amor não falha/Tonalidade Dó/áudios vocal/Melodia - Teu Amor Não Falha - Dó.mp3"
+  },
+  {
+    "folderId": "teu-amor-nao-falha-tonalidade-do",
+    "audioKey": "teu-amor-nao-falha",
+    "label": "Tenor",
+    "path": "Teu amor não falha/Tonalidade Dó/áudios vocal/Tenor - Teu Amor Não Falha - Dó.mp3"
+  },
+  {
+    "folderId": "teu-povo-tonalidade-sol",
+    "audioKey": "teu-povo",
+    "label": "Contralto",
+    "path": "Teu Povo/Tonalidade Sol/Vocal/Contralto - Teu povo - Sol.mp3"
+  },
+  {
+    "folderId": "teu-povo-tonalidade-sol",
+    "audioKey": "teu-povo",
+    "label": "Melodia",
+    "path": "Teu Povo/Tonalidade Sol/Vocal/Melodia - Teu povo - Sol.mp3"
+  },
+  {
+    "folderId": "teu-povo-tonalidade-sol",
+    "audioKey": "teu-povo",
+    "label": "Tenor",
+    "path": "Teu Povo/Tonalidade Sol/Vocal/Tenor - Teu povo - Sol.mp3"
+  },
+  {
+    "folderId": "toma-o-meu-coracao-tonalidade-re",
+    "audioKey": "toma-o-meu-coracao",
+    "label": "Contralto",
+    "path": "Toma o meu coração/Tonalidade - Ré/Vocal/Contralto - Toma o meu coração - Ré.mp3"
+  },
+  {
+    "folderId": "toma-o-meu-coracao-tonalidade-re",
+    "audioKey": "toma-o-meu-coracao",
+    "label": "Melodia",
+    "path": "Toma o meu coração/Tonalidade - Ré/Vocal/Melodia-Toma-o-meu-coração-Ré.mp3"
+  },
+  {
+    "folderId": "toma-o-meu-coracao-tonalidade-re",
+    "audioKey": "toma-o-meu-coracao",
+    "label": "Tenor",
+    "path": "Toma o meu coração/Tonalidade - Ré/Vocal/Tenor-Toma-o-meu-coração-Ré.mp3"
+  },
+  {
+    "folderId": "tu-es-aguas-purificadoras-tonalidade-mi",
+    "audioKey": "tu-es-aguas-purificadoras",
+    "label": "Contralto",
+    "path": "Tu és + águas purificadoras/Tonalidade Mi/Vocal/Contralto - Tu És.mp3"
+  },
+  {
+    "folderId": "tu-es-aguas-purificadoras-tonalidade-mi",
+    "audioKey": "tu-es-aguas-purificadoras",
+    "label": "Melodia feminina",
+    "path": "Tu és + águas purificadoras/Tonalidade Mi/Vocal/Melodia Feminina - Tu És.mp3"
+  },
+  {
+    "folderId": "tu-es-aguas-purificadoras-tonalidade-mi",
+    "audioKey": "tu-es-aguas-purificadoras",
+    "label": "Melodia masculina",
+    "path": "Tu és + águas purificadoras/Tonalidade Mi/Vocal/Melodia Masculina - Tu És.mp3"
+  },
+  {
+    "folderId": "tu-es-aguas-purificadoras-tonalidade-mi",
+    "audioKey": "tu-es-aguas-purificadoras",
+    "label": "Tenor",
+    "path": "Tu és + águas purificadoras/Tonalidade Mi/Vocal/Tenor - Tu És.mp3"
+  },
+  {
+    "folderId": "tu-es-santo-tonalidade-mi",
+    "audioKey": "tu-es-santo",
+    "label": "Contralto",
+    "path": "Tu és santo/Tonalidade Mi/áudios vocal/Contralto - Tu És Santo - Mi.mp3"
+  },
+  {
+    "folderId": "tu-es-santo-tonalidade-mi",
+    "audioKey": "tu-es-santo",
+    "label": "Melodia",
+    "path": "Tu és santo/Tonalidade Mi/áudios vocal/Melodia - Tu És Santo - Mi.mp3"
+  },
+  {
+    "folderId": "tu-es-santo-tonalidade-mi",
+    "audioKey": "tu-es-santo",
+    "label": "Tenor",
+    "path": "Tu és santo/Tonalidade Mi/áudios vocal/Tenor - Tu És Santo - Mi.mp3"
+  },
+  {
+    "folderId": "tu-es-soberano-tonalidade-re",
+    "audioKey": "tu-es-soberano",
+    "label": "Contralto",
+    "path": "Tu és soberano/Tonalidade Ré/áudios vocal/Contralto - Tu És Soberano - Ré.mp3"
+  },
+  {
+    "folderId": "tu-es-soberano-tonalidade-re",
+    "audioKey": "tu-es-soberano",
+    "label": "Melodia",
+    "path": "Tu és soberano/Tonalidade Ré/áudios vocal/Melodia - Tu És Soberano.mp3"
+  },
+  {
+    "folderId": "tu-es-soberano-tonalidade-re",
+    "audioKey": "tu-es-soberano",
+    "label": "Tenor",
+    "path": "Tu és soberano/Tonalidade Ré/áudios vocal/Tenor - Tu És Soberano - Ré.mp3"
+  }
+]

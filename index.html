@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#21142f">
+    <meta name="description" content="Cifras e ferramentas práticas para o ministério de louvor.">
+    <title>Sound-Asaph — Cifras para louvor</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <script src="drive-config.js"></script>
+    <script src="app.js" defer></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" id="catalog">
+        <a class="brand" href="#" aria-label="Sound-Asaph, início">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 32 32" fill="none"><path d="M7 19.5V12.5M13 24V8M19 20V12M25 17V15" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
+          </span>
+          <span class="brand-name">sound<span>-</span>asaph</span>
+        </a>
+        <button class="sidebar-category setlist-heading" id="sunday-category" type="button" aria-pressed="false">
+          <span class="eyebrow">LOUVOR DE DOMINGO</span>
+          <span class="song-count" id="setlist-count">0</span>
+        </button>
+        <div class="setlist-list" id="setlist-list" aria-label="Músicas do louvor de domingo"></div>
+        <label class="search-box">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.8" cy="8.8" r="5.8"/><path d="m13 13 4 4"/></svg>
+          <input id="song-search" type="search" placeholder="Buscar música..." autocomplete="off" aria-label="Buscar música">
+          <kbd>/</kbd>
+        </label>
+        <button class="sidebar-category" id="category-hinario" type="button" data-category="hinario" aria-pressed="false">
+          <span>Hinário</span><span class="song-count" id="hinario-count">0</span>
+        </button>
+        <button class="sidebar-category" id="category-datas-especiais" type="button" data-category="datas-especiais" aria-pressed="false">
+          <span>Datas Especiais</span><span class="song-count" id="datas-especiais-count">0</span>
+        </button>
+        <div class="sidebar-separator" role="separator"></div>
+        <button class="sidebar-category" id="category-preparacao" type="button" data-category="preparacao" aria-pressed="false">
+          <span>Músicas em Preparação</span><span class="song-count" id="preparacao-count">0</span>
+        </button>
+        <button class="sidebar-category" id="category-repertorio" type="button" data-category="repertorio" aria-pressed="false">
+          <span>Músicas</span><span class="song-count" id="repertorio-count">0</span>
+        </button>
+        <input id="song-import-input" class="visually-hidden" type="file" accept=".txt,.md,.pdf,.doc,.docx,text/plain,text/markdown,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" aria-label="Selecionar arquivos de música" multiple>
+        <button class="catalog-action-button import-songs-button" id="song-import-button" type="button">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v10m0-10L6.5 6.5M10 3l3.5 3.5M4 11.5v3A1.5 1.5 0 0 0 5.5 16h9a1.5 1.5 0 0 0 1.5-1.5v-3"/></svg>
+          <span>Importar Músicas</span>
+        </button>
+        <div class="catalog-heading library-heading">
+          <span class="eyebrow">CATÁLOGO</span>
+          <span class="song-count" id="song-count">0 músicas</span>
+        </div>
+        <nav class="song-list" id="song-list" aria-label="Todas as músicas"></nav>
+        <div class="sidebar-footer">
+          <span class="status-dot"></span>
+          <span id="drive-status">Catálogo deste dispositivo</span>
+        </div>
+        <p class="demo-warning">Demonstração: perfis e alterações não têm proteção real nem são compartilhados.</p>
+        <button class="drive-sync-button" id="drive-sync-button" type="button">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 13V3m0 0L6.5 6.5M10 3l3.5 3.5M4 11.5v3A1.5 1.5 0 0 0 5.5 16h9a1.5 1.5 0 0 0 1.5-1.5v-3"/></svg>
+          <span id="drive-sync-label">Conectar Google Drive</span>
+        </button>
+      </aside>
+
+      <main class="main-area">
+        <header class="topbar">
+          <button class="mobile-menu icon-button" id="mobile-menu" aria-label="Abrir catálogo" aria-expanded="false">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+          </button>
+          <div class="breadcrumb"><span>Repertório</span><span class="breadcrumb-sep">/</span><strong id="breadcrumb-title">Carregando...</strong></div>
+          <div class="topbar-actions">
+            <span class="live-label"><span class="status-dot"></span> PRONTO PARA O CULTO</span>
+            <button class="stage-toggle profile-toggle" id="profile-toggle" type="button">
+              <span id="profile-label">Perfil</span>
+              <span>Sair</span>
+            </button>
+            <button class="stage-toggle" id="autoscroll-toggle" aria-pressed="false">
+              <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v14M6.5 6.5 10 3l3.5 3.5M6.5 13.5 10 17l3.5-3.5"/></svg>
+              <span>Auto-scroll</span>
+            </button>
+            <button class="stage-toggle" id="stage-toggle" aria-pressed="false">
+              <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 2.5v2M10 15.5v2M2.5 10h2m11 0h2M4.7 4.7l1.4 1.4m7.8 7.8 1.4 1.4m0-10.6-1.4 1.4m-7.8 7.8-1.4 1.4"/><circle cx="10" cy="10" r="4"/></svg>
+              <span id="stage-toggle-label">Modo palco</span>
+            </button>
+          </div>
+        </header>
+
+        <div class="workspace">
+          <section class="welcome-banner" aria-labelledby="welcome-title">
+            <div class="welcome-banner-content">
+              <span class="welcome-eyebrow"><span class="status-dot"></span> SOUND-ASAPH · MINISTÉRIO DE LOUVOR</span>
+              <h1 id="welcome-title">Um só repertório.<br><span>Uma equipe em harmonia.</span></h1>
+              <p>Cifras, vozes e músicas organizadas para preparar cada momento de louvor.</p>
+              <button class="welcome-drive-button" id="welcome-drive-button" type="button">
+                <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 13V3m0 0L6.5 6.5M10 3l3.5 3.5M4 11.5v3A1.5 1.5 0 0 0 5.5 16h9a1.5 1.5 0 0 0 1.5-1.5v-3"/></svg>
+                <span>Conectar repertório compartilhado</span>
+              </button>
+            </div>
+            <div class="welcome-banner-art" aria-hidden="true">
+              <span class="banner-orbit banner-orbit-one"></span>
+              <span class="banner-orbit banner-orbit-two"></span>
+              <svg viewBox="0 0 190 150" fill="none">
+                <path d="M15 81c10 0 10-24 20-24s10 47 20 47 10-70 20-70 10 96 20 96 10-67 20-67 10 45 20 45 10-27 20-27 10 11 20 11" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+                <circle cx="96" cy="75" r="68" stroke="currentColor" stroke-opacity=".18"/>
+                <circle cx="96" cy="75" r="53" stroke="currentColor" stroke-opacity=".13"/>
+              </svg>
+              <span class="banner-art-label">LOUVOR EM UNIDADE</span>
+            </div>
+          </section>
+          <section class="song-panel" aria-live="polite">
+            <div class="song-heading">
+              <div class="song-heading-copy">
+                <div class="song-meta"><span class="genre-dot"></span><span id="song-category">LOUVOR</span><span class="meta-divider">·</span><span id="song-artist">—</span></div>
+                <h1 id="song-title">Carregando músicas...</h1>
+                <p class="song-subtitle" id="song-subtitle">Suas cifras para acompanhar cada momento.</p>
+              </div>
+              <div class="song-heading-actions">
+                <button class="icon-button" id="delete-song-button" type="button" aria-label="Remover música" title="Remover música">
+                  <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 6h12m-10 0 1 11h6l1-11M8 6V4h4v2m-3 3v5m2-5v5"/></svg>
+                </button>
+                <button class="icon-button" id="edit-song-button" type="button" aria-label="Editar cifra" title="Editar cifra">
+                  <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m12.8 3.2 4 4M3 17l3.8-.8L16.6 6.4a1.7 1.7 0 0 0-2.4-2.4L4.4 13.8 3 17Z"/></svg>
+                </button>
+                <button class="icon-button share-button" id="copy-button" aria-label="Copiar cifra" title="Copiar cifra">
+                  <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="7" y="7" width="9" height="10" rx="1.5"/><path d="M12 7V4.5A1.5 1.5 0 0 0 10.5 3h-6A1.5 1.5 0 0 0 3 4.5v8A1.5 1.5 0 0 0 4.5 14H7"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <section class="voice-audio" id="voice-audio" aria-label="Áudios para estudo vocal" hidden>
+              <div class="voice-audio-heading">
+                <span class="eyebrow" id="voice-audio-title">ÁUDIOS PARA TREINO VOCAL</span>
+                <div class="voice-audio-heading-actions">
+                  <span class="voice-audio-note" id="voice-audio-note">Reprodução sem alteração de tom</span>
+                  <button class="dialog-button primary voice-audio-add" id="add-voice-audio" type="button" hidden>Adicionar áudio</button>
+                </div>
+              </div>
+              <div class="voice-audio-list" id="voice-audio-list"></div>
+              <input id="voice-audio-file-input" class="visually-hidden" type="file" accept=".mp3,.mp4,.mpeg,.ogg,.wav,.m4a,audio/*,video/mp4" aria-label="Selecionar novos áudios vocais" multiple>
+              <input id="voice-audio-replace-input" class="visually-hidden" type="file" accept=".mp3,.mp4,.mpeg,.ogg,.wav,.m4a,audio/*,video/mp4" aria-label="Selecionar áudio para substituir">
+            </section>
+
+            <div class="song-toolbar">
+              <div class="key-control" aria-label="Controles de tom">
+                <span class="control-label">TOM</span>
+                <button class="step-button" id="transpose-down" aria-label="Descer um semitom">−</button>
+                <span class="current-key" id="current-key">—</span>
+                <button class="step-button" id="transpose-up" aria-label="Subir um semitom">+</button>
+              </div>
+              <span class="toolbar-divider"></span>
+              <label class="capo-control">
+                <span class="control-label">CAPO</span>
+                <select id="capo-select" aria-label="Posição do capotraste">
+                  <option value="0">Sem capo</option>
+                  <option value="1">Casa 1</option>
+                  <option value="2">Casa 2</option>
+                  <option value="3">Casa 3</option>
+                  <option value="4">Casa 4</option>
+                  <option value="5">Casa 5</option>
+                  <option value="6">Casa 6</option>
+                  <option value="7">Casa 7</option>
+                  <option value="8">Casa 8</option>
+                  <option value="9">Casa 9</option>
+                  <option value="10">Casa 10</option>
+                  <option value="11">Casa 11</option>
+                </select>
+              </label>
+              <span class="toolbar-divider"></span>
+              <div class="font-control" aria-label="Tamanho da fonte">
+                <button class="font-button font-smaller" id="font-down" aria-label="Diminuir fonte">A−</button>
+                <button class="font-button font-larger" id="font-up" aria-label="Aumentar fonte">A+</button>
+              </div>
+            </div>
+
+            <div class="key-summary" id="key-summary"></div>
+            <div class="lyrics-card">
+              <div class="lyrics-topline"><span class="lyrics-topline-label"><span class="status-dot"></span> CIFRA</span><span id="song-original-key">TOM ORIGINAL —</span></div>
+              <div class="lyrics" id="lyrics" aria-label="Letra e cifra"></div>
+            </div>
+            <div class="song-footer"><span>Feito para tocar junto.</span><span class="footer-note">DICA <span>Use <kbd>+</kbd> e <kbd>−</kbd> para mudar o tom</span></span></div>
+          </section>
+        </div>
+      </main>
+    </div>
+    <dialog class="edit-song-dialog" id="edit-song-dialog" aria-labelledby="edit-song-title">
+      <form id="edit-song-form">
+        <div class="edit-dialog-heading">
+          <div>
+            <span class="eyebrow">EDITAR MÚSICA</span>
+            <h2 id="edit-song-title">Editar cifra</h2>
+          </div>
+          <button class="icon-button" id="close-edit-song" type="button" aria-label="Fechar edição">×</button>
+        </div>
+        <label class="edit-field">Título<input id="edit-song-name" name="title" required maxlength="160"></label>
+        <label class="edit-field">Artista<input id="edit-song-artist" name="artist" maxlength="160"></label>
+        <label class="edit-field">Tom original<input id="edit-song-key" name="key" maxlength="8" placeholder="Ex.: G ou F#"></label>
+        <label class="edit-field">Letra e acordes
+          <textarea id="edit-song-lyrics" name="lyrics" required spellcheck="false"></textarea>
+        </label>
+        <p class="edit-help">Use acordes entre colchetes, por exemplo [G] ou [D/F#].</p>
+        <div class="edit-dialog-actions">
+          <button class="dialog-button secondary" id="cancel-edit-song" type="button">Cancelar</button>
+          <button class="dialog-button primary" type="submit">Salvar alterações</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog class="login-dialog" id="login-dialog" aria-labelledby="login-title">
+      <form id="login-form">
+        <div class="login-brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32" fill="none"><path d="M7 19.5V12.5M13 24V8M19 20V12M25 17V15" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
+        </div>
+        <span class="eyebrow">SOUND-ASAPH · DEMONSTRAÇÃO</span>
+        <h2 id="login-title">Escolha seu perfil</h2>
+        <p class="login-warning">Este acesso é somente visual. O código e a senha são públicos; não use com dados privados.</p>
+        <label class="edit-field">Perfil
+          <select id="login-role" name="role" required>
+            <option value="admin">Admin</option>
+            <option value="musico">Músico</option>
+            <option value="vocal">Vocal</option>
+          </select>
+        </label>
+        <label class="edit-field">Senha de demonstração
+          <input id="login-password" name="password" type="password" autocomplete="current-password" required>
+        </label>
+        <button class="dialog-button primary login-submit" type="submit">Entrar</button>
+        <p class="login-error" id="login-error" role="alert" hidden></p>
+        <p class="login-demo-hint">Senha pública de demonstração: <code>123</code></p>
+      </form>
+    </dialog>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </body>
+</html>

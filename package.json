@@ -1,0 +1,15 @@
+{
+  "name": "sound-asaph",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Catálogo interativo de cifras para ministérios de louvor",
+  "scripts": {
+    "start": "node scripts/serve.js",
+    "import": "node scripts/import-songs.js",
+    "import:folder": "node scripts/import-folder-songs.js"
+  },
+  "dependencies": {
+    "pdfjs-dist": "4.2.67",
+    "word-extractor": "^1.0.4"
+  }
+}

@@ -1,0 +1,29 @@
+[
+  {
+    "id": "luz-no-caminho",
+    "title": "Luz no Caminho",
+    "artist": "Sound-Asaph",
+    "category": "ADORAÇÃO",
+    "subtitle": "Canção de demonstração · tom confortável para a equipe",
+    "key": "G",
+    "lyrics": "[G]Tua luz nos guia em [D/F#]cada amanhecer\n[Em7]Tua graça nos en[C]contra onde estiver\n\n[C]Cantamos com o [G/B]coração aberto\n[Am7]Seguimos teus [D]passos, sempre por [G]perto\n\n[G]Santo, santo, [D]Deus de amor\n[Em7]Nossa esperança e [C]Salvador\n[G/B]Todo dia vamos [Am7]celebrar\n[C]Tua bondade em [D]todo [G]lugar"
+  },
+  {
+    "id": "graca-que-renova",
+    "title": "Graça que Renova",
+    "artist": "Sound-Asaph",
+    "category": "LOUVOR",
+    "subtitle": "Canção de demonstração · uma nova manhã",
+    "key": "D",
+    "lyrics": "[D]Quando a manhã vem [A/C#]despertar\n[Bm7]Tua promessa vem nos [G]renovar\n[D/F#]Em cada passo, [Em7]em cada oração\n[G]Tua paz encontra o [A]coração\n\n[D]Tua graça nos [A]sustentará\n[Bm7]Teu amor não [G]falhará\n[D/F#]Com alegria vamos [Em7]caminhar\n[G]Tua luz nos [A]guiará"
+  },
+  {
+    "id": "perto-de-ti",
+    "title": "Perto de Ti",
+    "artist": "Sound-Asaph",
+    "category": "ADORAÇÃO",
+    "subtitle": "Canção de demonstração · momento de oração",
+    "key": "C",
+    "lyrics": "[C]No silêncio eu encontro [G/B]a tua voz\n[Am7]Tua presença traz [F]descanso a nós\n[C/E]Cada dia eu [Dm7]quero aprender\n[F]A confiar e [G]permanecer\n\n[C]Perto de ti, [G]quero estar\n[Am7]Teu caminho, [F]vou trilhar\n[C/E]Com minha vida, [Dm7]vou dizer\n[F]Que em teus braços [G]posso [C]viver"
+  }
+]
