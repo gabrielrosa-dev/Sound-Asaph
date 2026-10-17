@@ -73,10 +73,9 @@
           <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v10m0 0-3.5-3.5M10 13l3.5-3.5M4 15v2h12v-2"/></svg>
           <span>Instalar aplicativo</span>
         </button>
-        <p class="demo-warning">Demonstração: perfis e alterações não têm proteção real nem são compartilhados.</p>
         <button class="drive-sync-button" id="drive-sync-button" type="button">
           <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 13V3m0 0L6.5 6.5M10 3l3.5 3.5M4 11.5v3A1.5 1.5 0 0 0 5.5 16h9a1.5 1.5 0 0 0 1.5-1.5v-3"/></svg>
-          <span id="drive-sync-label">Conectar Google Drive</span>
+          <span id="drive-sync-label">Conectar Drive</span>
         </button>
       </aside>
       <button class="sidebar-backdrop" id="sidebar-backdrop" type="button" aria-label="Fechar catálogo" tabindex="-1"></button>
@@ -86,9 +85,8 @@
           <button class="mobile-menu icon-button" id="mobile-menu" aria-label="Abrir catálogo" aria-expanded="false">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
           </button>
-          <div class="breadcrumb"><span>Repertório</span><span class="breadcrumb-sep">/</span><strong id="breadcrumb-title">Carregando...</strong></div>
+          <div class="breadcrumb" aria-hidden="true"><strong id="breadcrumb-title">Carregando...</strong></div>
           <div class="topbar-actions">
-            <span class="live-label"><span class="status-dot"></span> PRONTO PARA O CULTO</span>
             <button class="stage-toggle profile-toggle" id="profile-toggle" type="button">
               <span id="profile-label">Perfil</span>
               <span>Sair</span>
@@ -105,33 +103,12 @@
         </header>
 
         <div class="workspace">
-          <section class="welcome-banner" aria-labelledby="welcome-title">
-            <div class="welcome-banner-content">
-              <span class="welcome-eyebrow"><span class="status-dot"></span> SOUND-ASAPH · MINISTÉRIO DE LOUVOR</span>
-              <h1 id="welcome-title">Um só repertório.<br><span>Uma equipe em harmonia.</span></h1>
-              <p>Cifras, vozes e músicas organizadas para preparar cada momento de louvor.</p>
-              <button class="welcome-drive-button" id="welcome-drive-button" type="button">
-                <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 13V3m0 0L6.5 6.5M10 3l3.5 3.5M4 11.5v3A1.5 1.5 0 0 0 5.5 16h9a1.5 1.5 0 0 0 1.5-1.5v-3"/></svg>
-                <span>Conectar repertório compartilhado</span>
-              </button>
-            </div>
-            <div class="welcome-banner-art" aria-hidden="true">
-              <span class="banner-orbit banner-orbit-one"></span>
-              <span class="banner-orbit banner-orbit-two"></span>
-              <svg viewBox="0 0 190 150" fill="none">
-                <path d="M15 81c10 0 10-24 20-24s10 47 20 47 10-70 20-70 10 96 20 96 10-67 20-67 10 45 20 45 10-27 20-27 10 11 20 11" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
-                <circle cx="96" cy="75" r="68" stroke="currentColor" stroke-opacity=".18"/>
-                <circle cx="96" cy="75" r="53" stroke="currentColor" stroke-opacity=".13"/>
-              </svg>
-              <span class="banner-art-label">LOUVOR EM UNIDADE</span>
-            </div>
-          </section>
           <section class="song-panel" aria-live="polite">
             <div class="song-heading">
               <div class="song-heading-copy">
                 <div class="song-meta"><span class="genre-dot"></span><span id="song-category">LOUVOR</span><span class="meta-divider">·</span><span id="song-artist">—</span></div>
                 <h1 id="song-title">Carregando músicas...</h1>
-                <p class="song-subtitle" id="song-subtitle">Suas cifras para acompanhar cada momento.</p>
+                <p class="song-subtitle" id="song-subtitle" hidden></p>
               </div>
               <div class="song-heading-actions">
                 <button class="icon-button" id="delete-song-button" type="button" aria-label="Remover música" title="Remover música">
@@ -196,7 +173,6 @@
               <div class="lyrics-topline"><span class="lyrics-topline-label"><span class="status-dot"></span> CIFRA</span><span id="song-original-key">TOM ORIGINAL —</span></div>
               <div class="lyrics" id="lyrics" aria-label="Letra e cifra"></div>
             </div>
-            <div class="song-footer"><span>Feito para tocar junto.</span><span class="footer-note">DICA <span>Use <kbd>+</kbd> e <kbd>−</kbd> para mudar o tom</span></span></div>
           </section>
         </div>
       </main>

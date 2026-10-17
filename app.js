@@ -223,7 +223,8 @@ function renderVoiceAudio(song) {
 
   const settings = loadAudioSettings();
   const tracks = audioAssets.filter(track =>
-    track.folderId === song.folderId || (song.audioKey && track.audioKey === song.audioKey)
+    (track.local || track.drive) &&
+    (track.folderId === song.folderId || (song.audioKey && track.audioKey === song.audioKey))
   ).filter(track => !settings.hiddenIds.includes(track.local ? track.id : bundledAudioId(track)));
   if (!tracks.length) {
     const empty = document.createElement("span");
@@ -290,8 +291,6 @@ function renderVoiceAudio(song) {
         }
       });
       card.append(heading, playDriveAudio, player);
-    } else {
-      player.src = `musicas/${track.path.split("/").map(encodeURIComponent).join("/")}`;
     }
     if (!track.drive) card.append(heading, player);
     if (isAdmin) {
@@ -403,7 +402,6 @@ function setRoleInterface() {
   document.querySelector("#profile-label").textContent = ROLE_LABELS[currentRole] || "Perfil";
   document.querySelector("#song-import-button").hidden = currentRole !== "admin";
   document.querySelector("#drive-sync-button").hidden = currentRole !== "admin";
-  document.querySelector("#welcome-drive-button").hidden = currentRole !== "admin";
   document.querySelector("#edit-song-button").hidden = !currentRole;
   document.querySelector("#delete-song-button").hidden = currentRole !== "admin";
   if (currentRole && currentSong()) {
@@ -996,7 +994,7 @@ async function saveSongEdit(event) {
       }
       hasDriveCatalog = true;
       document.querySelector("#drive-status").textContent = "Sincronizado com Google Drive";
-      document.querySelector("#drive-sync-label").textContent = "Sincronizar Google Drive";
+      document.querySelector("#drive-sync-label").textContent = "Sincronizar Drive";
       selectSong(song.id);
     } catch (error) {
       driveSaveError = error;
@@ -1442,7 +1440,7 @@ async function importLocalSongs(files) {
         importedSongs.splice(0, importedSongs.length, ...importedSongs.map(song => savedById.get(song.id) || song));
         hasDriveCatalog = true;
         document.querySelector("#drive-status").textContent = "Sincronizado com Google Drive";
-        document.querySelector("#drive-sync-label").textContent = "Sincronizar Google Drive";
+        document.querySelector("#drive-sync-label").textContent = "Sincronizar Drive";
       }
     } catch (error) {
       console.error("As músicas foram importadas localmente, mas não foi possível conectar ao Drive.", error);
@@ -1534,12 +1532,12 @@ async function syncGoogleDrive(onProgress = () => {}) {
     }
   }
   const localOnlySongs = loadCachedLocalSongs().filter(song => !song.driveFileId);
-  songs = applySongEdits([...importedSongs, ...bundledFolderSongs, ...localOnlySongs]);
+  songs = applySongEdits([...importedSongs, ...localOnlySongs]);
   sundaySongIds = sundaySongIds.filter(id => songs.some(song => song.id === id));
   saveSundaySetlist();
   hasDriveCatalog = true;
   document.querySelector("#drive-status").textContent = "Sincronizado com Google Drive";
-  document.querySelector("#drive-sync-label").textContent = "Sincronizar Google Drive";
+  document.querySelector("#drive-sync-label").textContent = "Sincronizar Drive";
   saveCachedDriveSongs(importedSongs);
   renderCatalog(searchInput.value);
   if (songs.length) selectSong(songs[0].id);
@@ -1711,34 +1709,27 @@ document.querySelector("#voice-audio-replace-input").addEventListener("change", 
 async function handleDriveSync(event) {
   if (currentRole !== "admin") return;
   document.querySelector("#drive-sync-button").disabled = true;
-  document.querySelector("#welcome-drive-button").disabled = true;
   const syncLabel = document.querySelector("#drive-sync-label");
-  const welcomeLabel = document.querySelector("#welcome-drive-button span");
   syncLabel.textContent = "Conectando ao Drive...";
-  welcomeLabel.textContent = "Conectando ao repertório...";
   document.querySelector("#drive-status").textContent = "Aguardando autorização do Google...";
   try {
     await syncGoogleDrive(status => {
       syncLabel.textContent = status;
-      welcomeLabel.textContent = status;
       document.querySelector("#drive-status").textContent = status;
     });
   } catch (error) {
     console.error("Não foi possível sincronizar o Google Drive.", error);
     document.querySelector("#drive-status").textContent = "Falha ao sincronizar com o Google Drive";
-    welcomeLabel.textContent = "Tentar conectar novamente";
+    syncLabel.textContent = "Tentar novamente";
     showToast(error.message || "Não foi possível sincronizar o Google Drive.");
   } finally {
-    document.querySelector("#drive-sync-label").textContent = hasDriveCatalog ? "Sincronizar Google Drive" : "Conectar Google Drive";
     if (document.querySelector("#drive-status").textContent !== "Falha ao sincronizar com o Google Drive") {
-      welcomeLabel.textContent = "Conectar repertório compartilhado";
+      document.querySelector("#drive-sync-label").textContent = hasDriveCatalog ? "Sincronizar Drive" : "Conectar Drive";
     }
     document.querySelector("#drive-sync-button").disabled = false;
-    document.querySelector("#welcome-drive-button").disabled = false;
   }
 }
 document.querySelector("#drive-sync-button").addEventListener("click", handleDriveSync);
-document.querySelector("#welcome-drive-button").addEventListener("click", handleDriveSync);
 document.querySelector("#mobile-menu").addEventListener("click", event => {
   const open = !document.querySelector("#catalog").classList.contains("open");
   setCatalogOpen(open);
@@ -1783,38 +1774,32 @@ if (!currentRole) document.querySelector("#login-dialog").showModal();
 
 Promise.all([
   fetch("data/songs.json"),
-  fetch("data/folder-songs.json"),
-  fetch("data/folder-audio.json")
+  fetch("data/folder-songs.json")
 ])
-  .then(async ([catalogResponse, folderSongsResponse, audioResponse]) => {
+  .then(async ([catalogResponse, folderSongsResponse]) => {
     if (!catalogResponse.ok) throw new Error(`Falha ao carregar músicas (${catalogResponse.status})`);
-    if (!folderSongsResponse.ok) throw new Error(`Falha ao carregar cifras da pasta musicas (${folderSongsResponse.status})`);
-    if (!audioResponse.ok) throw new Error(`Falha ao carregar o índice de áudios (${audioResponse.status})`);
-    const [data, folderSongs, voiceAudio] = await Promise.all([
+    if (!folderSongsResponse.ok) throw new Error(`Falha ao carregar cifras locais (${folderSongsResponse.status})`);
+    const [data, folderSongs] = await Promise.all([
       catalogResponse.json(),
-      folderSongsResponse.json(),
-      audioResponse.json()
+      folderSongsResponse.json()
     ]);
     if (!Array.isArray(data) || data.length === 0) throw new Error("O catálogo não contém músicas.");
-    if (!Array.isArray(folderSongs)) throw new Error("O catálogo importado da pasta musicas não é válido.");
-    if (!Array.isArray(voiceAudio) || voiceAudio.some(track =>
-      !track || typeof track.folderId !== "string" || typeof track.audioKey !== "string" ||
-      typeof track.label !== "string" || typeof track.path !== "string"
-    )) throw new Error("O índice de áudios vocais não é válido. Execute npm run import:folder.");
+    if (!Array.isArray(folderSongs)) throw new Error("O catálogo local não é válido.");
     try {
-      audioAssets = [...voiceAudio, ...await loadLocalAudioAssets()];
+      audioAssets = await loadLocalAudioAssets();
     } catch (error) {
       console.error("Não foi possível carregar os áudios salvos neste navegador.", error);
-      audioAssets = voiceAudio;
+      audioAssets = [];
       showToast(error.message || "Os áudios adicionados neste navegador não foram carregados.");
     }
     const cachedDriveSongs = loadCachedDriveSongs();
     bundledFolderSongs = folderSongs;
-    songs = applySongEdits([...(cachedDriveSongs || data), ...bundledFolderSongs, ...loadCachedLocalSongs()]);
+    const initialSongs = cachedDriveSongs !== null ? cachedDriveSongs : [...data, ...bundledFolderSongs];
+    songs = applySongEdits([...initialSongs, ...loadCachedLocalSongs()]);
     hasDriveCatalog = cachedDriveSongs !== null;
     if (cachedDriveSongs !== null) {
       document.querySelector("#drive-status").textContent = "Cifras sincronizadas neste dispositivo";
-      document.querySelector("#drive-sync-label").textContent = "Sincronizar Google Drive";
+      document.querySelector("#drive-sync-label").textContent = "Sincronizar Drive";
     }
     const availableSongs = visibleSongs();
     const currentSetlist = sundaySongIds.length;

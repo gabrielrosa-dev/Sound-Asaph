@@ -1,6 +1,6 @@
 "use strict";
 
-const CACHE_NAME = "sound-asaph-shell-v1";
+const CACHE_NAME = "sound-asaph-shell-v2";
 const SHELL_ASSETS = [
   "./",
   "./index.html",
@@ -13,7 +13,6 @@ const SHELL_ASSETS = [
   "./icons/icon-512.png",
   "./data/songs.json",
   "./data/folder-songs.json",
-  "./data/folder-audio.json"
 ];
 const SHELL_URLS = new Set(SHELL_ASSETS.map(asset => new URL(asset, self.location.href).href));
 
