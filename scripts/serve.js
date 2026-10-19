@@ -3,10 +3,17 @@
 
 const http = require("node:http");
 const fs = require("node:fs");
+const fsp = fs.promises;
 const path = require("node:path");
 const WordExtractor = require("word-extractor");
+const { syncFromDrive, runImport, hasCredentials, MUSIC_DIR } = require("./drive-sync");
 
 const ROOT = path.resolve(__dirname, "..");
+const OVERRIDES_FILE = path.join(ROOT, "data", "overrides.json");
+const BLOCKED_PATHS = new Set(["credentials", "scripts", "node_modules", "package.json", "package-lock.json"]);
+const AUTO_SYNC_MS = Number(process.env.SYNC_INTERVAL_MS || 60_000);
+const syncState = { running: false, promise: null, lastResult: null, lastError: "", lastSyncAt: 0 };
+let catalogVersion = 0;
 const PORT = Number(process.env.PORT || 4173);
 const MAX_DOCUMENT_SIZE = 20 * 1024 * 1024;
 const wordExtractor = new WordExtractor();
@@ -112,6 +119,134 @@ function handleDocumentExtraction(request, response) {
   });
 }
 
+function sendJson(response, status, body) {
+  response.writeHead(status, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
+  response.end(JSON.stringify(body));
+}
+
+function readBody(request, limit) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let size = 0;
+    request.on("data", chunk => {
+      size += chunk.length;
+      if (size > limit) {
+        reject(Object.assign(new Error("Arquivo grande demais."), { status: 413 }));
+        request.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
+    request.on("end", () => resolve(Buffer.concat(chunks)));
+    request.on("error", reject);
+  });
+}
+
+async function readOverrides() {
+  try {
+    const parsed = JSON.parse(await fsp.readFile(OVERRIDES_FILE, "utf8"));
+    return { edits: parsed.edits || {}, deleted: parsed.deleted || [] };
+  } catch {
+    return { edits: {}, deleted: [] };
+  }
+}
+
+async function writeOverrides(overrides) {
+  await fsp.mkdir(path.dirname(OVERRIDES_FILE), { recursive: true });
+  await fsp.writeFile(OVERRIDES_FILE, JSON.stringify(overrides, null, 2));
+  catalogVersion = Date.now();
+}
+
+async function runSync(reason) {
+  if (syncState.running) return syncState.promise;
+  syncState.running = true;
+  syncState.promise = (async () => {
+    try {
+      const result = await syncFromDrive();
+      Object.assign(syncState, { lastResult: result, lastError: "", lastSyncAt: Date.now() });
+      catalogVersion = Date.now();
+      console.log(`Sincronização (${reason}): ${result.downloaded} baixado(s), ${result.removed} removido(s), ${result.errors.length} erro(s).`);
+      return result;
+    } catch (error) {
+      syncState.lastError = error.message;
+      console.error(`Falha na sincronização (${reason}):`, error.message);
+      throw error;
+    } finally {
+      syncState.running = false;
+    }
+  })();
+  return syncState.promise;
+}
+
+async function handleApi(request, response, pathname) {
+  try {
+    if (pathname === "/api/status" && request.method === "GET") {
+      const overrides = await readOverrides();
+      sendJson(response, 200, {
+        ok: true,
+        version: Math.max(catalogVersion, await fsp.stat(path.join(ROOT, "data", "folder-songs.json")).then(s => s.mtimeMs, () => 0)),
+        driveConfigured: await hasCredentials(),
+        syncing: syncState.running,
+        lastSyncAt: syncState.lastSyncAt,
+        lastError: syncState.lastError,
+        lastResult: syncState.lastResult,
+        overrides
+      });
+      return;
+    }
+    if (request.headers["x-sound-asaph"] !== "1") {
+      sendJson(response, 403, { error: "Requisição não autorizada." });
+      return;
+    }
+    if (pathname === "/api/sync" && request.method === "POST") {
+      sendJson(response, 200, await runSync("manual"));
+    } else if (pathname === "/api/overrides/edit" && request.method === "PUT") {
+      const { id, title, artist, key, lyrics } = JSON.parse((await readBody(request, 1024 * 1024)).toString("utf8"));
+      if (typeof id !== "string" || !id || typeof title !== "string" || typeof lyrics !== "string") {
+        sendJson(response, 400, { error: "Dados inválidos." });
+        return;
+      }
+      const overrides = await readOverrides();
+      overrides.edits[id] = { title, artist: artist || "", key: key || "", lyrics };
+      await writeOverrides(overrides);
+      sendJson(response, 200, { ok: true });
+    } else if (pathname === "/api/overrides/delete" && request.method === "POST") {
+      const { id } = JSON.parse((await readBody(request, 4096)).toString("utf8"));
+      if (typeof id !== "string" || !id) {
+        sendJson(response, 400, { error: "Dados inválidos." });
+        return;
+      }
+      const overrides = await readOverrides();
+      overrides.deleted = [...new Set([...overrides.deleted, id])];
+      delete overrides.edits[id];
+      await writeOverrides(overrides);
+      sendJson(response, 200, { ok: true });
+    } else if (pathname === "/api/upload" && request.method === "POST") {
+      const filename = path.basename(decodeURIComponent(request.headers["x-sound-asaph-filename"] || ""));
+      const extension = path.extname(filename).toLowerCase();
+      const isAudio = MEDIA_EXTENSIONS.has(extension);
+      if (!filename || (!isAudio && ![".txt", ".md", ".pdf", ".doc", ".docx"].includes(extension))) {
+        sendJson(response, 415, { error: "Formato não suportado." });
+        return;
+      }
+      const buffer = await readBody(request, isAudio ? 100 * 1024 * 1024 : MAX_DOCUMENT_SIZE);
+      const folder = decodeURIComponent(request.headers["x-sound-asaph-folder"] || "") || "Músicas";
+      const targetDirectory = path.join(MUSIC_DIR, "Importadas", ...(isAudio ? [path.basename(folder)] : []));
+      await fsp.mkdir(targetDirectory, { recursive: true });
+      await fsp.writeFile(path.join(targetDirectory, filename), buffer);
+      if (request.headers["x-sound-asaph-last"] === "1") {
+        await runImport();
+        catalogVersion = Date.now();
+      }
+      sendJson(response, 200, { ok: true });
+    } else {
+      sendJson(response, 404, { error: "Rota não encontrada." });
+    }
+  } catch (error) {
+    sendJson(response, error.status || 500, { error: error.message });
+  }
+}
+
 http.createServer((request, response) => {
   let pathname;
   try {
@@ -129,6 +264,10 @@ http.createServer((request, response) => {
     handleDocumentExtraction(request, response);
     return;
   }
+  if (pathname.startsWith("/api/")) {
+    handleApi(request, response, pathname);
+    return;
+  }
   if (request.method !== "GET" && request.method !== "HEAD") {
     response.writeHead(405, { Allow: "GET, HEAD" }).end("Método não permitido");
     return;
@@ -137,6 +276,11 @@ http.createServer((request, response) => {
   const requestedPath = pathname === "/" ? "/index.html" : pathname;
   const filePath = path.resolve(ROOT, `.${requestedPath}`);
   if (filePath !== ROOT && !filePath.startsWith(`${ROOT}${path.sep}`)) {
+    response.writeHead(403).end("Acesso negado");
+    return;
+  }
+  const topLevel = path.relative(ROOT, filePath).split(path.sep)[0];
+  if (BLOCKED_PATHS.has(topLevel.toLowerCase()) || topLevel.startsWith(".")) {
     response.writeHead(403).end("Acesso negado");
     return;
   }
@@ -207,6 +351,12 @@ http.createServer((request, response) => {
     });
     stream.pipe(response);
   });
-}).listen(PORT, "127.0.0.1", () => {
+}).listen(PORT, "127.0.0.1", async () => {
   console.log(`Sound-Asaph disponível em http://localhost:${PORT}`);
+  if (await hasCredentials()) {
+    runSync("início").catch(() => {});
+    setInterval(() => runSync("automática").catch(() => {}), AUTO_SYNC_MS);
+  } else {
+    console.log("Drive não configurado: coloque a chave em credentials/service-account.json (veja o README) ou copie as músicas para a pasta musicas/ e rode npm run import:folder.");
+  }
 });

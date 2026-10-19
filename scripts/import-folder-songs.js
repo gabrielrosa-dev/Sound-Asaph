@@ -84,9 +84,7 @@ async function listVoiceAudioFiles(directory, relativeDirectory = "") {
       if (entry.name.toLocaleLowerCase("pt-BR") !== "descartados") {
         files.push(...await listVoiceAudioFiles(path.join(directory, entry.name), relativePath));
       }
-    } else if (entry.isFile() &&
-        SUPPORTED_AUDIO_EXTENSIONS.has(path.extname(entry.name).toLowerCase()) &&
-        /(melodia|melody|contralto|tenor)/i.test(entry.name)) {
+    } else if (entry.isFile() && SUPPORTED_AUDIO_EXTENSIONS.has(path.extname(entry.name).toLowerCase())) {
       files.push(relativePath);
     }
   }
@@ -98,7 +96,19 @@ function getVoiceLabel(filename) {
   if (/tenor/i.test(filename)) return "Tenor";
   if (/melodia.*feminin|feminin.*melodia/i.test(filename)) return "Melodia feminina";
   if (/melodia.*masculin|masculin.*melodia/i.test(filename)) return "Melodia masculina";
-  return "Melodia";
+  if (/melodia|melody/i.test(filename)) return "Melodia";
+  return path.basename(filename, path.extname(filename)).replace(/[_-]+/g, " ").trim() || "Áudio";
+}
+
+// Mesma regra de agrupamento usada pelo app para ligar áudios às músicas.
+function audioGroup(relativePath) {
+  const folders = relativePath.split(path.sep).slice(0, -1).filter(name =>
+    !/^(vocal|vocais|audio|audios)$/i.test(name.normalize("NFD").replace(/[\u0300-\u036f]/g, "")));
+  const songFolder = folders.length > 1 ? folders[1] : folders[0] || "";
+  return {
+    folderId: folders.length > 1 ? slugify(`${folders[0]}-${songFolder}`) : slugify(songFolder),
+    audioKey: audioNameKey(songFolder)
+  };
 }
 
 async function extractPdfText(buffer) {
@@ -203,16 +213,15 @@ function parseSong(relativePath, contents) {
 
   song.title = cleanToneFromTitle(song.title);
   song.lyrics = convertChordLines(lyrics).join("\n").trim();
+  if (!song.id || !song.title || !song.lyrics) {
+    throw new Error("arquivo sem texto legível");
+  }
+  // Letras sem acordes reconhecíveis continuam no catálogo (como letra simples).
   const chords = [...song.lyrics.matchAll(/\[([^\]]*)\]/g)];
-  const lyricsWithoutChords = song.lyrics.replace(/\[[^\]]*\]/g, "");
-  if (!song.id || !song.title || !song.lyrics || !chords.length ||
-      chords.some(([, chord]) => !CHORD_PATTERN.test(chord)) ||
-      /[\[\]]/.test(lyricsWithoutChords)) {
-    throw new Error("cifra não reconhecida ou sem acordes válidos");
+  if (chords.some(([, chord]) => !CHORD_PATTERN.test(chord))) {
+    song.lyrics = song.lyrics.replace(/\[([^\]]*)\]/g, (match, chord) => CHORD_PATTERN.test(chord) ? match : chord);
   }
-  if (song.key && !KEY_PATTERN.test(song.key)) {
-    throw new Error(`tom inválido: "${song.key}"`);
-  }
+  if (song.key && !KEY_PATTERN.test(song.key)) song.key = "";
   return song;
 }
 
@@ -225,6 +234,7 @@ function getDuplicateKey(song) {
 }
 
 async function main() {
+  await fs.mkdir(inputDir, { recursive: true });
   const files = await listSongFiles(inputDir);
   const audioFiles = await listVoiceAudioFiles(inputDir);
   const songs = [];
@@ -247,18 +257,15 @@ async function main() {
     }
   }
 
-  if (!songs.length) {
+  if (!songs.length && files.length) {
     const examples = failures.slice(0, 5).join("\n");
-    throw new Error(`Nenhuma cifra reconhecível foi encontrada em ${files.length} documento(s).${examples ? `\n${examples}` : ""}`);
+    throw new Error(`Nenhuma música legível foi encontrada em ${files.length} documento(s).${examples ? `\n${examples}` : ""}`);
   }
   await fs.mkdir(path.dirname(outputFile), { recursive: true });
   await fs.writeFile(outputFile, `${JSON.stringify(songs, null, 2)}\n`, "utf8");
   const audioLibrary = audioFiles.map(relativePath => {
-    const parts = relativePath.split(path.sep);
-    const songFolder = parts[0].startsWith("@") ? parts[1] : parts[0];
     return {
-      folderId: folderIdForPath(relativePath),
-      audioKey: audioNameKey(songFolder),
+      ...audioGroup(relativePath),
       label: getVoiceLabel(path.basename(relativePath)),
       path: relativePath.split(path.sep).join("/")
     };

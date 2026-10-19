@@ -256,3 +256,18 @@ body.stage-mode { --page: #17111f; --surface: #21182b; --surface-soft: #2c203b; 
   .key-control .control-label, .capo-control .control-label { font-size: 9px; }
   .capo-control select { max-width: 92px; padding-right: 14px; font-size: 10px; }
 }
+
+.worship-button { border-color: var(--green-dark); background: var(--green); color: #fff; font-weight: 700; }
+.worship-button:hover { background: var(--green-dark); }
+.worship-mode { position: fixed; inset: 0; z-index: 1000; overflow-y: auto; background: #17111d; color: #f3ecfa; --worship-size: 28px; scroll-behavior: smooth; -webkit-overflow-scrolling: touch; }
+.worship-mode[hidden] { display: none; }
+.worship-open { overflow: hidden; }
+.worship-controls { position: fixed; top: 10px; right: 10px; z-index: 2; display: flex; gap: 6px; opacity: .45; }
+.worship-controls:hover, .worship-controls:focus-within { opacity: 1; }
+.worship-controls button { min-width: 44px; min-height: 44px; border: 1px solid #69527e; border-radius: 8px; background: #33283e; color: #f3ecfa; font-size: 16px; font-weight: 700; cursor: pointer; }
+.worship-songs { max-width: 1100px; margin: 0 auto; padding: 28px 22px 40vh; }
+.worship-song { padding: 34px 0 40px; border-bottom: 2px solid #3b2d49; }
+.worship-song h2 { margin: 0 0 4px; color: #d9bdf3; font-size: calc(var(--worship-size) * 1.2); line-height: 1.2; }
+.worship-key { display: inline-block; margin-bottom: 14px; color: #a99bb8; font-size: calc(var(--worship-size) * .6); font-weight: 700; letter-spacing: .08em; }
+.worship-lyrics { padding: 0; font-size: var(--worship-size); }
+.worship-lyrics .chord { color: #e0b8ff; }

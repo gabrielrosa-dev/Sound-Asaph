@@ -42,7 +42,11 @@ const DELETED_SONGS_CACHE_KEY = "sound-asaph-demo-deleted-songs";
 const AUDIO_SETTINGS_CACHE_KEY = "sound-asaph-audio-settings";
 const STAGE_MODE_CACHE_KEY = "sound-asaph-stage-mode";
 const DEMO_PASSWORD = "123";
-const ROLE_LABELS = { admin: "Admin", musico: "Músico", vocal: "Vocal" };
+const ROLE_LABELS = { admin: "Líder", musico: "Músico", vocal: "Vocal" };
+const SERVER_HEADERS = { "x-sound-asaph": "1" };
+let serverMode = false;
+let serverVersion = 0;
+let serverOverrides = { edits: {}, deleted: [] };
 const AUDIO_DATABASE_NAME = "sound-asaph-audio-library";
 const AUDIO_STORE_NAME = "tracks";
 const MAX_LOCAL_AUDIO_SIZE = 100 * 1024 * 1024;
@@ -215,14 +219,15 @@ function renderLyrics() {
 function renderVoiceAudio(song) {
   const section = document.querySelector("#voice-audio");
   const list = document.querySelector("#voice-audio-list");
-  const showAudio = currentRole === "vocal" || currentRole === "admin";
+  const showAudio = Boolean(currentRole);
   const isAdmin = currentRole === "admin";
   for (const objectUrl of activeAudioObjectUrls) URL.revokeObjectURL(objectUrl);
   activeAudioObjectUrls = [];
   section.hidden = !showAudio;
-  document.querySelector("#voice-audio-title").textContent = isAdmin ? "GERENCIAR ÁUDIOS VOCAIS" : "ÁUDIOS PARA TREINO VOCAL";
+  const audioTitle = document.querySelector("#voice-audio-title");
+  audioTitle.textContent = isAdmin ? "GERENCIAR ÁUDIOS" : currentRole === "vocal" ? "ÁUDIOS PARA TREINO VOCAL" : "ÁUDIOS DE REFERÊNCIA";
   document.querySelector("#voice-audio-note").textContent = isAdmin
-    ? "Alterações ficam salvas somente neste navegador."
+    ? "Alterações de áudio ficam salvas somente neste navegador."
     : "Reprodução sem alteração de tom";
   const addButton = document.querySelector("#add-voice-audio");
   addButton.hidden = !isAdmin;
@@ -232,7 +237,7 @@ function renderVoiceAudio(song) {
 
   const settings = loadAudioSettings();
   const tracks = audioAssets.filter(track =>
-    (track.local || track.drive) &&
+    (track.local || track.drive || track.bundled) &&
     (track.folderId === song.folderId || (song.audioKey && track.audioKey === song.audioKey))
   ).filter(track => !settings.hiddenIds.includes(track.local ? track.id : bundledAudioId(track)));
   if (!tracks.length) {
@@ -265,6 +270,8 @@ function renderVoiceAudio(song) {
       const objectUrl = URL.createObjectURL(track.blob);
       activeAudioObjectUrls.push(objectUrl);
       player.src = objectUrl;
+    } else if (track.bundled) {
+      player.src = `musicas/${track.path.split("/").map(encodeURIComponent).join("/")}`;
     } else if (track.drive) {
       const playDriveAudio = document.createElement("button");
       playDriveAudio.className = "voice-audio-action";
@@ -447,7 +454,7 @@ function loadDeletedSongIds() {
 }
 
 function visibleSongs() {
-  const deletedIds = new Set(loadDeletedSongIds());
+  const deletedIds = new Set(serverMode ? serverOverrides.deleted : loadDeletedSongIds());
   return songs.filter(song => !deletedIds.has(song.id) && !/\bmelodia\b/i.test(song.title));
 }
 
@@ -495,10 +502,25 @@ function logoutDemoRole() {
 async function deleteCurrentSong() {
   if (currentRole !== "admin") return;
   const song = currentSong();
-  if (!song || !window.confirm(song.driveFileId
+  if (!song || !window.confirm(serverMode
+    ? `Apagar "${song.title}" do catálogo? (O arquivo original no Drive não é alterado.)`
+    : song.driveFileId
     ? `Apagar "${song.title}" do Google Drive compartilhado e deste catálogo?`
     : `Remover "${song.title}" deste navegador? A mudança não afeta os outros dispositivos.`)) return;
-  if (song.driveFileId) {
+  if (serverMode) {
+    try {
+      const response = await fetch("/api/overrides/delete", {
+        method: "POST",
+        headers: { ...SERVER_HEADERS, "Content-Type": "application/json" },
+        body: JSON.stringify({ id: song.id })
+      });
+      if (!response.ok) throw new Error(`erro ${response.status}`);
+      serverOverrides.deleted = [...new Set([...serverOverrides.deleted, song.id])];
+    } catch (error) {
+      showToast(`Não foi possível apagar: ${error.message}`);
+      return;
+    }
+  } else if (song.driveFileId) {
     const { googleClientId } = window.SOUND_ASAPH_CONFIG || {};
     if (!googleClientId) {
       showToast("Configure o Client ID para apagar esta música do Drive.");
@@ -537,7 +559,7 @@ async function deleteCurrentSong() {
     lyricsElement.replaceChildren();
   }
   renderCatalog(searchInput.value);
-  showToast(song.driveFileId ? "Música apagada do Google Drive compartilhado." : "Música removida somente deste navegador.");
+  showToast(serverMode ? "Música removida do catálogo." : song.driveFileId ? "Música apagada do Google Drive compartilhado." : "Música removida somente deste navegador.");
 }
 
 function renderCatalog(filter = "") {
@@ -934,7 +956,7 @@ function loadSongEdits() {
 }
 
 function applySongEdits(catalogSongs) {
-  const edits = loadSongEdits();
+  const edits = serverMode ? serverOverrides.edits : loadSongEdits();
   return catalogSongs.map(song => {
     const editedSong = edits[song.id];
     return {
@@ -968,8 +990,8 @@ async function saveSongEdit(event) {
     showToast("Informe o título e a letra/cifra.");
     return;
   }
-  if (!chords.length || chords.some(([, chord]) => !CHORD_TOKEN_PATTERN.test(chord)) ||
-      /[\[\]]/.test(textWithoutChords)) {
+  if (/[\[\]]/.test(lyrics) && (chords.some(([, chord]) => !CHORD_TOKEN_PATTERN.test(chord)) ||
+      /[\[\]]/.test(textWithoutChords))) {
     showToast("Confira os acordes entre colchetes, por exemplo [G] ou [D/F#].");
     return;
   }
@@ -979,6 +1001,25 @@ async function saveSongEdit(event) {
   }
 
   let updatedSong = { ...song, title, artist, key, lyrics };
+  if (serverMode) {
+    try {
+      const response = await fetch("/api/overrides/edit", {
+        method: "PUT",
+        headers: { ...SERVER_HEADERS, "Content-Type": "application/json" },
+        body: JSON.stringify({ id: song.id, title, artist, key, lyrics })
+      });
+      if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || `erro ${response.status}`);
+      serverOverrides.edits[song.id] = { title, artist, key, lyrics };
+      songs = songs.map(item => item.id === song.id ? updatedSong : item);
+      document.querySelector("#edit-song-dialog").close();
+      selectSong(song.id);
+      showToast("Cifra salva no servidor do Sound-Asaph.");
+    } catch (error) {
+      console.error("Não foi possível salvar a cifra no servidor.", error);
+      showToast(`Não foi possível salvar: ${error.message}`);
+    }
+    return;
+  }
   try {
     const edits = loadSongEdits();
     edits[song.id] = { title, artist, key, lyrics };
@@ -1480,7 +1521,26 @@ async function readLocalSongFile(file) {
 
 async function importLocalSongs(files) {
   if (currentRole !== "admin") {
-    throw new Error("Somente o perfil Admin pode importar músicas.");
+    throw new Error("Somente o perfil Líder pode importar músicas.");
+  }
+  if (serverMode) {
+    const list = [...files];
+    if (!list.length) throw new Error("Selecione pelo menos um arquivo de música.");
+    for (const [index, file] of list.entries()) {
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        headers: {
+          ...SERVER_HEADERS,
+          "x-sound-asaph-filename": encodeURIComponent(file.name),
+          "x-sound-asaph-last": index === list.length - 1 ? "1" : "0"
+        },
+        body: file
+      });
+      if (!response.ok) throw new Error(`${file.name}: ${(await response.json().catch(() => ({}))).error || response.status}`);
+    }
+    await refreshServerCatalog(true);
+    showToast(`${list.length} arquivo(s) enviado(s) para a pasta musicas/Importadas.`);
+    return;
   }
   const importedSongs = [];
   const failures = [];
@@ -1890,11 +1950,102 @@ function startDriveAutoSync() {
   driveSyncTimer = setInterval(refreshDriveInBackground, DRIVE_SYNC_INTERVAL_MS);
 }
 
+async function fetchServerData() {
+  const [songsResponse, audioResponse, statusResponse] = await Promise.all([
+    fetch("data/folder-songs.json", { cache: "no-store" }),
+    fetch("data/folder-audio.json", { cache: "no-store" }).catch(() => null),
+    fetch("/api/status", { cache: "no-store" }).catch(() => null)
+  ]);
+  const status = statusResponse?.ok ? await statusResponse.json().catch(() => null) : null;
+  const folderSongs = songsResponse.ok ? await songsResponse.json() : [];
+  const folderAudio = audioResponse?.ok ? await audioResponse.json().catch(() => []) : [];
+  return { status, folderSongs: Array.isArray(folderSongs) ? folderSongs : [], folderAudio: Array.isArray(folderAudio) ? folderAudio : [] };
+}
+
+function applyServerData({ status, folderSongs, folderAudio }) {
+  serverMode = Boolean(status?.ok);
+  if (!serverMode) return false;
+  serverVersion = status.version;
+  serverOverrides = status.overrides || { edits: {}, deleted: [] };
+  bundledFolderSongs = folderSongs;
+  audioAssets = [...audioAssets.filter(track => !track.bundled), ...folderAudio.map(track => ({ ...track, bundled: true }))];
+  songs = applySongEdits(folderSongs);
+  updateServerStatusText(status);
+  return true;
+}
+
+function updateServerStatusText(status) {
+  const statusElement = document.querySelector("#drive-status");
+  const label = document.querySelector("#drive-sync-label");
+  const audioCount = audioAssets.filter(track => track.bundled).length;
+  label.textContent = status.driveConfigured ? "Sincronizar Drive" : "Configurar Drive";
+  if (!status.driveConfigured) {
+    statusElement.textContent = `${songs.length} músicas locais · Drive não configurado`;
+    statusElement.title = "Salve a chave da conta de serviço em credentials/service-account.json (veja o README) ou coloque arquivos na pasta musicas/.";
+  } else if (status.lastError) {
+    statusElement.textContent = "Falha ao sincronizar com o Drive · toque para ver";
+    statusElement.title = status.lastError;
+  } else if (status.syncing) {
+    statusElement.textContent = "Sincronizando com o Drive...";
+    statusElement.title = "";
+  } else {
+    const errors = status.lastResult?.errors || [];
+    statusElement.textContent = `${songs.length} músicas · ${audioCount} áudios · Drive sincronizado${errors.length ? ` · ${errors.length} aviso(s)` : ""}`;
+    statusElement.title = errors.join("\n");
+  }
+}
+
+async function refreshServerCatalog(force = false) {
+  const data = await fetchServerData();
+  if (!data.status?.ok) return;
+  if (!force && data.status.version === serverVersion) {
+    updateServerStatusText(data.status);
+    return;
+  }
+  applyServerData(data);
+  const available = visibleSongs();
+  sundaySongIds = sundaySongIds.filter(id => available.some(song => song.id === id));
+  saveSundaySetlist();
+  renderCatalog(searchInput.value);
+  const keep = available.find(song => song.id === selectedSongId) || available[0];
+  if (keep) {
+    const steps = transposeSteps;
+    selectSong(keep.id);
+    if (keep.id === selectedSongId && steps) { transposeSteps = steps; renderLyrics(); }
+  }
+}
+
+async function handleServerSync() {
+  const label = document.querySelector("#drive-sync-label");
+  const statusElement = document.querySelector("#drive-status");
+  label.textContent = "Sincronizando...";
+  statusElement.textContent = "Baixando arquivos do Drive...";
+  const response = await fetch("/api/sync", { method: "POST", headers: SERVER_HEADERS });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(body.error || `erro ${response.status}`);
+  await refreshServerCatalog(true);
+  showToast(`Drive sincronizado: ${body.downloaded} novo(s)/alterado(s), ${body.removed} removido(s)${body.errors.length ? `, ${body.errors.length} erro(s)` : ""}.`);
+}
+
 async function handleDriveSync() {
   if (!currentRole) return;
   const button = document.querySelector("#drive-sync-button");
   button.disabled = true;
   const syncLabel = document.querySelector("#drive-sync-label");
+  if (serverMode) {
+    try {
+      await handleServerSync();
+    } catch (error) {
+      console.error("Falha ao sincronizar pelo servidor.", error);
+      document.querySelector("#drive-status").textContent = "Falha ao sincronizar com o Drive · toque para ver";
+      document.querySelector("#drive-status").title = error.message;
+      syncLabel.textContent = "Tentar novamente";
+      showToast(error.message);
+    } finally {
+      button.disabled = false;
+    }
+    return;
+  }
   syncLabel.textContent = "Conectando ao Drive...";
   document.querySelector("#drive-status").textContent = "Aguardando autorização do Google...";
   document.querySelector("#drive-status").title = "";
@@ -1924,6 +2075,14 @@ async function handleDriveSync() {
     button.disabled = false;
   }
 }
+let serverPollTimer = null;
+function startServerPolling() {
+  if (serverPollTimer !== null) return;
+  serverPollTimer = setInterval(() => {
+    if (!document.hidden) refreshServerCatalog().catch(error => console.error("Falha ao consultar o servidor.", error));
+  }, 15_000);
+}
+
 document.querySelector("#drive-sync-button").addEventListener("click", handleDriveSync);
 document.querySelector("#drive-status").addEventListener("click", event => {
   const status = event.currentTarget;
@@ -1972,6 +2131,95 @@ window.addEventListener("touchend", event => {
   if (Math.abs(event.changedTouches[0].clientY - touchStartY) > 24 && scrollTimer !== null) stopAutoScroll();
 }, { passive: true });
 
+let worshipFontSize = 28;
+
+function renderWorshipSongs() {
+  const container = document.querySelector("#worship-songs");
+  container.replaceChildren();
+  const available = visibleSongs();
+  const selected = sundaySongIds.map(id => available.find(song => song.id === id)).filter(Boolean);
+  const vocalOnly = currentRole === "vocal";
+  selected.forEach((song, index) => {
+    const section = document.createElement("section");
+    section.className = "worship-song";
+    const heading = document.createElement("h2");
+    heading.textContent = `${index + 1}. ${song.title}`;
+    section.append(heading);
+    if (!vocalOnly && song.key) {
+      const key = document.createElement("span");
+      key.className = "worship-key";
+      key.textContent = `Tom ${song.key}`;
+      section.append(key);
+    }
+    const body = document.createElement("div");
+    body.className = "lyrics worship-lyrics";
+    for (const line of normalizeIntroChords(song.lyrics).split("\n")) {
+      const lineElement = document.createElement("div");
+      lineElement.className = "lyric-line";
+      if (vocalOnly) {
+        const text = line.replace(CHORD_PATTERN, "").replace(/\s+$/g, "");
+        if (!text.trim() && line.trim()) continue;
+        lineElement.textContent = text || "\u00a0";
+      } else {
+        let last = 0;
+        for (const match of line.matchAll(CHORD_PATTERN)) {
+          if (match.index > last) lineElement.append(document.createTextNode(line.slice(last, match.index)));
+          const chord = document.createElement("span");
+          chord.className = "chord";
+          chord.textContent = match[1];
+          lineElement.append(chord);
+          last = match.index + match[0].length;
+        }
+        if (last < line.length) lineElement.append(document.createTextNode(line.slice(last)));
+        if (!line) lineElement.append(document.createTextNode("\u00a0"));
+      }
+      body.append(lineElement);
+    }
+    section.append(body);
+    container.append(section);
+  });
+  return selected.length;
+}
+
+async function openWorshipMode() {
+  if (!sundaySongIds.length || !renderWorshipSongs()) {
+    showToast("Selecione músicas de domingo com o + no catálogo antes de apresentar.");
+    return;
+  }
+  const overlay = document.querySelector("#worship-mode");
+  overlay.style.setProperty("--worship-size", `${worshipFontSize}px`);
+  overlay.hidden = false;
+  document.body.classList.add("worship-open");
+  overlay.scrollTop = 0;
+  try {
+    await document.documentElement.requestFullscreen?.({ navigationUI: "hide" });
+  } catch (error) {
+    console.warn("Tela cheia indisponível; exibindo em janela completa.", error);
+  }
+}
+
+function closeWorshipMode() {
+  document.querySelector("#worship-mode").hidden = true;
+  document.body.classList.remove("worship-open");
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+}
+
+function changeWorshipFont(delta) {
+  worshipFontSize = Math.min(56, Math.max(16, worshipFontSize + delta));
+  document.querySelector("#worship-mode").style.setProperty("--worship-size", `${worshipFontSize}px`);
+}
+
+document.querySelector("#worship-button").addEventListener("click", openWorshipMode);
+document.querySelector("#worship-exit").addEventListener("click", closeWorshipMode);
+document.querySelector("#worship-font-up").addEventListener("click", () => changeWorshipFont(2));
+document.querySelector("#worship-font-down").addEventListener("click", () => changeWorshipFont(-2));
+document.addEventListener("fullscreenchange", () => {
+  if (!document.fullscreenElement && !document.querySelector("#worship-mode").hidden) closeWorshipMode();
+});
+document.addEventListener("keydown", event => {
+  if (event.key === "Escape" && !document.querySelector("#worship-mode").hidden) closeWorshipMode();
+});
+
 setupInstallableApp();
 setRoleInterface();
 setStageMode(loadStageMode());
@@ -2006,10 +2254,19 @@ Promise.all([
     }
     const cachedDriveSongs = await loadCachedDriveSongs();
     bundledFolderSongs = folderSongs;
+    const serverData = await fetchServerData().catch(() => null);
+    const useServer = serverData ? applyServerData({ ...serverData, folderSongs: serverData.folderSongs.length ? serverData.folderSongs : folderSongs }) : false;
+    if (useServer) {
+      audioAssets = audioAssets.filter(track => !track.drive);
+      cachedDriveAudios = [];
+      startServerPolling();
+    }
     const initialSongs = cachedDriveSongs !== null ? cachedDriveSongs : [...data, ...bundledFolderSongs];
-    songs = applySongEdits([...initialSongs, ...loadCachedLocalSongs()]);
-    hasDriveCatalog = cachedDriveSongs !== null;
-    if (cachedDriveSongs !== null) {
+    if (!useServer) songs = applySongEdits([...initialSongs, ...loadCachedLocalSongs()]);
+    hasDriveCatalog = !useServer && cachedDriveSongs !== null;
+    if (useServer) {
+      // o status já foi preenchido por applyServerData
+    } else if (cachedDriveSongs !== null) {
       document.querySelector("#drive-status").textContent =
         `${cachedDriveSongs.length} cifras e ${cachedDriveAudios.length} áudios guardados`;
       document.querySelector("#drive-sync-label").textContent = "Conectar Drive";

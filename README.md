@@ -20,6 +20,24 @@ Abra [http://localhost:4173](http://localhost:4173). O servidor é necessário p
 
 No PowerShell do Windows, se a política do sistema bloquear `npm.ps1`, use `npm.cmd start` no lugar.
 
+## Sincronização com o Drive pelo servidor (recomendado)
+
+Ao rodar `npm start`, o servidor baixa a pasta do Drive para `musicas/`, extrai o texto dos PDFs/Word/Docs e gera o catálogo (`data/folder-songs.json` e `data/folder-audio.json`). Ele repete isso a cada 60 s (inclusões, alterações e exclusões no Drive), e o app aberto se atualiza sozinho. Esse caminho não depende do login Google no navegador. Como a pasta é privada, é preciso uma **conta de serviço**:
+
+1. No [Google Cloud Console](https://console.cloud.google.com/), crie/escolha um projeto e ative a **Google Drive API**.
+2. Em **IAM e administrador → Contas de serviço**, crie uma conta de serviço. Em **Chaves → Adicionar chave → JSON**, baixe o arquivo.
+3. Salve o arquivo como `credentials/service-account.json` (a pasta é bloqueada no servidor web; nunca publique esse arquivo).
+4. No Google Drive, clique em **Compartilhar** na pasta do ministério e adicione o e-mail da conta de serviço (campo `client_email` do JSON, algo como `nome@projeto.iam.gserviceaccount.com`) como **Leitor**.
+5. Confira o ID da pasta em `drive-config.js` (já está preenchido) e rode `npm install` e `npm start`. A barra lateral mostra o status; **Sincronizar Drive** força uma atualização imediata.
+
+Sem credenciais, o app funciona só com a pasta `musicas/`: copie para lá suas pastas (`Hinário`, `Músicas`, etc., com cada música em uma subpasta e áudios em `Vocais`) e rode `npm run import:folder`.
+
+Edições de cifra, exclusões e arquivos enviados por **Importar Músicas** (perfil Líder) ficam salvos no servidor (`data/overrides.json` e `musicas/Importadas`) e valem para todos os dispositivos conectados. Elas não alteram os arquivos originais no Drive. Letras sem acordes aparecem como letra simples.
+
+## Músicas de Domingo e Modo Culto
+
+Use o **+** no catálogo para montar a lista **Músicas de Domingo** e clique em **Apresentar Repertório**: o app entra em tela cheia, esconde menus e mostra as cifras do culto em rolagem contínua (A−/A+ ajustam a fonte; **Esc** ou ✕ sai). O perfil Vocal vê só as letras.
+
 ## Instalar no celular, tablet ou computador
 
 O Sound-Asaph pode ser instalado como aplicativo web (PWA) pelo navegador. Publique os arquivos `manifest.webmanifest`, `service-worker.js` e a pasta `icons` junto com os arquivos do app. O site precisa ser acessado por HTTPS; o endereço `localhost` também funciona para desenvolvimento.

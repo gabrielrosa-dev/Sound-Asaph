@@ -33,10 +33,14 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
         </button>
         <button class="sidebar-category setlist-heading" id="sunday-category" type="button" aria-pressed="false">
-          <span class="eyebrow">LOUVOR DE DOMINGO</span>
+          <span class="eyebrow">MÚSICAS DE DOMINGO</span>
           <span class="song-count" id="setlist-count">0</span>
         </button>
         <div class="setlist-list" id="setlist-list" aria-label="Músicas do louvor de domingo"></div>
+        <button class="catalog-action-button worship-button" id="worship-button" type="button">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 8V4h4M16 8V4h-4M4 12v4h4m8-4v4h-4"/></svg>
+          <span>Apresentar Repertório</span>
+        </button>
         <label class="search-box">
           <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.8" cy="8.8" r="5.8"/><path d="m13 13 4 4"/></svg>
           <input id="song-search" type="search" placeholder="Buscar música..." autocomplete="off" aria-label="Buscar música">
@@ -211,7 +215,7 @@
         <p class="login-warning">Este acesso é somente visual. O código e a senha são públicos; não use com dados privados.</p>
         <label class="edit-field">Perfil
           <select id="login-role" name="role" required>
-            <option value="admin">Admin</option>
+            <option value="admin">Líder</option>
             <option value="musico">Músico</option>
             <option value="vocal">Vocal</option>
           </select>
@@ -252,6 +256,14 @@
         <p class="install-status" id="install-status" role="status" aria-live="polite"></p>
       </form>
     </dialog>
+    <div class="worship-mode" id="worship-mode" role="dialog" aria-label="Modo Culto" hidden>
+      <div class="worship-controls">
+        <button type="button" id="worship-font-down" aria-label="Diminuir fonte">A−</button>
+        <button type="button" id="worship-font-up" aria-label="Aumentar fonte">A+</button>
+        <button type="button" id="worship-exit" aria-label="Sair do Modo Culto">✕</button>
+      </div>
+      <div class="worship-songs" id="worship-songs"></div>
+    </div>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
   </body>
 </html>
