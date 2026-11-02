@@ -41,6 +41,10 @@
           <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 8V4h4M16 8V4h-4M4 12v4h4m8-4v4h-4"/></svg>
           <span>Apresentar Repertório</span>
         </button>
+        <button class="catalog-action-button" id="schedule-button" type="button">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="4.5" width="14" height="12" rx="2"/><path d="M3 8.5h14M7 3v3m6-3v3"/></svg>
+          <span>Escalas</span>
+        </button>
         <label class="search-box">
           <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.8" cy="8.8" r="5.8"/><path d="m13 13 4 4"/></svg>
           <input id="song-search" type="search" placeholder="Buscar música..." autocomplete="off" aria-label="Buscar música">
@@ -205,27 +209,84 @@
         </div>
       </form>
     </dialog>
+    <dialog class="edit-song-dialog schedule-dialog" id="schedule-dialog" aria-labelledby="schedule-title">
+      <div class="schedule-body">
+        <div class="edit-dialog-heading">
+          <div>
+            <span class="eyebrow">ESCALA DE LOUVOR</span>
+            <h2 id="schedule-title">Escalas</h2>
+          </div>
+          <button class="icon-button" id="close-schedule" type="button" aria-label="Fechar escalas">×</button>
+        </div>
+        <section class="schedule-section">
+          <h3 id="schedule-month-title"></h3>
+          <p class="schedule-status" id="schedule-status" role="status"></p>
+        </section>
+        <section class="schedule-section" data-admin-only>
+          <h3>Período de preenchimento</h3>
+          <form class="schedule-inline" id="schedule-period-form">
+            <label class="schedule-size">De <input id="schedule-period-start" type="date" required></label>
+            <label class="schedule-size">Até <input id="schedule-period-end" type="date" required></label>
+            <button class="dialog-button primary" type="submit">Definir período</button>
+            <button class="dialog-button secondary" id="schedule-lock" type="button">Fixar escala</button>
+            <button class="dialog-button secondary" id="schedule-unlock" type="button">Reabrir edição</button>
+          </form>
+        </section>
+        <section class="schedule-section" data-admin-only>
+          <h3>Membros e datas extras</h3>
+          <form class="schedule-inline" id="schedule-member-form">
+            <input id="schedule-member-name" placeholder="Nome do membro" maxlength="80" required aria-label="Nome do membro">
+            <input id="schedule-member-role" list="schedule-role-options" placeholder="Função (ex.: Bateria)" maxlength="40" aria-label="Função">
+            <button class="dialog-button primary" type="submit">Adicionar membro</button>
+            <datalist id="schedule-role-options"><option value="Guitarra"><option value="Baixo"><option value="Bateria"><option value="Flauta"><option value="Violão / Guitarra B."><option value="Teclado"><option value="Tenor"><option value="Melodia"><option value="Contralto"><option value="Qualquer nipe"></datalist>
+          </form>
+          <div class="schedule-chips" id="schedule-members"></div>
+          <form class="schedule-inline" id="schedule-date-form">
+            <input id="schedule-date-input" type="date" required aria-label="Data extra de culto (além dos domingos)">
+            <button class="dialog-button primary" type="submit">Adicionar data extra</button>
+            <label class="schedule-size">Pessoas por data <input id="schedule-team-size" type="number" min="1" max="30"></label>
+          </form>
+          <div class="schedule-chips" id="schedule-dates"></div>
+        </section>
+        <section class="schedule-section">
+          <h3>Disponibilidade</h3>
+          <label class="edit-field">Quem é você?
+            <select id="schedule-availability-member" aria-label="Membro"></select>
+          </label>
+          <div class="schedule-availability" id="schedule-availability"></div>
+        </section>
+        <section class="schedule-section">
+          <div class="schedule-heading-row">
+            <h3>Escala gerada</h3>
+            <div>
+              <button class="dialog-button secondary" id="schedule-copy" type="button">Copiar escala</button>
+              <button class="dialog-button primary" id="schedule-generate" type="button" data-admin-only>Gerar escala</button>
+            </div>
+          </div>
+          <div class="schedule-table" id="schedule-table"></div>
+        </section>
+      </div>
+    </dialog>
     <dialog class="login-dialog" id="login-dialog" aria-labelledby="login-title">
       <form id="login-form">
         <div class="login-brand-mark" aria-hidden="true">
           <svg viewBox="0 0 32 32" fill="none"><path d="M7 19.5V12.5M13 24V8M19 20V12M25 17V15" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
         </div>
-        <span class="eyebrow">SOUND-ASAPH · DEMONSTRAÇÃO</span>
+        <span class="eyebrow">SOUND-ASAPH</span>
         <h2 id="login-title">Escolha seu perfil</h2>
-        <p class="login-warning">Este acesso é somente visual. O código e a senha são públicos; não use com dados privados.</p>
+        <p class="login-warning">Músico e Vocal entram sem senha. Somente o Líder precisa de senha para editar.</p>
         <label class="edit-field">Perfil
           <select id="login-role" name="role" required>
-            <option value="admin">Líder</option>
             <option value="musico">Músico</option>
             <option value="vocal">Vocal</option>
+            <option value="admin">Líder</option>
           </select>
         </label>
-        <label class="edit-field">Senha de demonstração
-          <input id="login-password" name="password" type="password" autocomplete="current-password" required>
+        <label class="edit-field" id="login-password-field" hidden>Senha do Líder
+          <input id="login-password" name="password" type="password" autocomplete="current-password">
         </label>
         <button class="dialog-button primary login-submit" type="submit">Entrar</button>
         <p class="login-error" id="login-error" role="alert" hidden></p>
-        <p class="login-demo-hint">Senha pública de demonstração: <code>123</code></p>
       </form>
     </dialog>
     <dialog class="install-dialog" id="install-dialog" aria-labelledby="install-title">

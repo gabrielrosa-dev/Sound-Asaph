@@ -32,6 +32,18 @@ Ao rodar `npm start`, o servidor baixa a pasta do Drive para `musicas/`, extrai 
 
 Sem credenciais, o app funciona só com a pasta `musicas/`: copie para lá suas pastas (`Hinário`, `Músicas`, etc., com cada música em uma subpasta e áudios em `Vocais`) e rode `npm run import:folder`.
 
+### Acesso pelo tablet e celular
+
+O servidor escuta em todas as interfaces de rede (`HOST=0.0.0.0` por padrão). Ao iniciar, ele imprime o endereço para a rede local, por exemplo `http://192.168.1.16:4173`. Abra esse endereço no tablet (conectado ao mesmo Wi-Fi do computador que roda `npm start`): todo o repertório (cifras e áudios do Drive) é carregado do servidor, sem login Google no tablet. Para restringir ao próprio computador, use `HOST=127.0.0.1`. Se o Windows perguntar, libere o Node.js no firewall para redes privadas. O computador precisa ficar ligado com o servidor rodando.
+
+### Edição pelo modo Líder
+
+Edições de cifra feitas no app são gravadas no arquivo original do Drive quando ele é `.txt`, `.md` ou Google Doc **e** a pasta foi compartilhada com a conta de serviço como **Editor** (como Leitor, a edição fica só no servidor e o app avisa o motivo). PDF/Word continuam sendo alterados apenas no servidor.
+
+## Escalas de louvor
+
+O botão **Escalas** (todos os perfis) abre o painel da escala. A escala é feita **por mês**: o painel mostra sozinho o mês em andamento e passa ao seguinte depois do último domingo. O Líder cadastra membros (nome e função, ex.: Bateria, Tenor, ou "Qualquer nipe") . Os domingos do mês entram automaticamente; o Líder só acrescenta datas extras (ex.: culto especial). O Líder define o **período de preenchimento** do mês (a data inicial já vem sugerida: o dia seguinte ao último domingo do mês anterior). Só durante o período os membros marcam os domingos em que podem servir; antes e depois disso a marcação fica bloqueada (no Apps Script, o bloqueio também vale no servidor).  Encerrado o período, o Líder clica em **Gerar escala**, ajusta se precisar e usa **Fixar escala** para finalizá-la (**Reabrir edição** desfaz). Depois do último domingo o mês é encerrado e a escala fica só para consulta. Sobre a geração: o app preenche uma pessoa por função entre as disponíveis do mês (quem serviu menos tem prioridade); gerar um mês não altera os outros, e depois o Líder pode remover ou adicionar membros em cada data. **Copiar escala** gera um texto para enviar ao grupo. Os dados ficam em `data/schedule.json` no servidor, compartilhados entre os dispositivos (sem servidor, ficam no navegador).
+
 Edições de cifra, exclusões e arquivos enviados por **Importar Músicas** (perfil Líder) ficam salvos no servidor (`data/overrides.json` e `musicas/Importadas`) e valem para todos os dispositivos conectados. Elas não alteram os arquivos originais no Drive. Letras sem acordes aparecem como letra simples.
 
 ## Músicas de Domingo e Modo Culto
@@ -119,16 +131,20 @@ As músicas importadas ficam salvas neste navegador e são acrescentadas ao cat�
 
 Use o botão de edição ao lado de uma música para alterar título, artista, tom e letra/acordes. As mudanças ficam salvas no navegador atual e permanecem após recarregar o app; alterações locais não são compartilhadas automaticamente com outros dispositivos.
 
-## Perfis de demonstração
+## Publicar para todo o grupo (GitHub Pages, custo zero)
 
-O seletor de perfil oferece **Admin**, **Músico** e **Vocal**. A senha pública de demonstração é `123`. O Admin pode importar e remover músicas neste navegador; os três perfis podem editar cifras. O perfil Vocal vê somente a letra e pode reproduzir os áudios vocais disponíveis no Drive após a sincronização ou os áudios adicionados neste navegador. Não há alteração automática de tom dos áudios.
+Nesse modo não há servidor: o site no GitHub Pages lê o Drive direto do navegador.
 
-O Admin também vê o painel de áudios vocais da música selecionada e pode adicionar arquivos MP3, MP4, MPEG, OGG, WAV ou M4A (até 100 MB cada), renomear as faixas, substituir seus arquivos ou ocultá-las. Os arquivos adicionados e as alterações de exibição ficam somente neste navegador; essas ações não modificam os arquivos originais do Drive.
+1. **Pasta pública por link:** no Drive, compartilhe a pasta como "Qualquer pessoa com o link → Leitor". Só você e os líderes ficam como Editor.
+2. **Chave de API:** no Google Cloud, ative a Drive API, crie uma chave de API e restrinja-a ao domínio do seu GitHub Pages (referenciador HTTP) e à Drive API.
+3. **`drive-config.js`:** preencha `driveFolderId`, `apiKey` e `googleClientId` (este último só para o Líder editar; adicione a origem do GitHub Pages nas origens autorizadas do OAuth). Troque `adminPassword`.
+4. **Escalas:** crie um projeto no Google Apps Script com o conteúdo de `apps-script/Code.gs`, defina as propriedades `FOLDER_ID` e `ADMIN_PASSWORD`, implante como App da Web (executar como você, acesso "Qualquer pessoa") e coloque a URL em `scheduleApiUrl`.
+5. **Converter PDF/Word para .txt:** o GitHub Pages não lê PDF/Word, então rode `npm run converter` (`--local` só converte em `cifras-convertidas/`; `--upload` envia para a mesma pasta de cada original no Drive). Confira o `RELATORIO.txt` (cifras sem acordes ou com falhas). Também é possível copiar os `.txt` manualmente para as pastas do Drive.
+6. Publique no GitHub Pages.
 
-Esses perfis são apenas uma demonstração visual: a senha e as permissões estão no código público do site. Alterações feitas como Músico/Vocal e arquivos adicionados localmente não são compartilhados; somente operações compatíveis feitas pelo Admin conectado ao Drive são gravadas na pasta compartilhada. Não há autenticação segura para os perfis. Para impor permissões reais, é necessário um backend com autenticação.
+Perfis: **Músico** e **Vocal** entram sem senha e só leem; o **Líder** usa senha e pode editar cifras (gravadas no Drive após login Google com permissão de Editor), importar músicas e gerar escalas. A senha em `drive-config.js` é só uma trava de tela, visível no código: a segurança real vem da permissão de Editor no Drive e da senha do Apps Script. Os músicos informam a disponibilidade na escala; só o Líder gera e salva.
 
-O app pode ser publicado como site estático no GitHub Pages, mas a extração de PDF/Word feita pelo servidor local não estará disponível nessa hospedagem sem um serviço adicional. Os áudios do Drive são baixados para reprodução e não são armazenados pelo cache offline do aplicativo.
-
+Os áudios do Drive são baixados para reprodução e não ficam no cache offline.
 ## Usar o aplicativo
 
 - Clique em uma música ou pesquise pelo título no catálogo.

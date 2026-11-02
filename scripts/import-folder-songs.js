@@ -277,7 +277,11 @@ async function main() {
   if (failures.length) console.log(`${failures.length} arquivo(s) ignorado(s) por não conter cifra reconhecível ou não ser compatível.`);
 }
 
-main().catch(error => {
-  console.error(`Erro na importação da pasta musicas: ${error.message}`);
-  process.exitCode = 1;
-});
+if (require.main === module) {
+  main().catch(error => {
+    console.error(`Erro na importação da pasta musicas: ${error.message}`);
+    process.exitCode = 1;
+  });
+}
+
+module.exports = { parseSong, extractText, listSongFiles, getDuplicateKey, inputDir };

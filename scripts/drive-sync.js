@@ -46,7 +46,7 @@ async function getAccessToken(credentials) {
   const header = base64url(JSON.stringify({ alg: "RS256", typ: "JWT" }));
   const claims = base64url(JSON.stringify({
     iss: credentials.client_email,
-    scope: "https://www.googleapis.com/auth/drive.readonly",
+    scope: "https://www.googleapis.com/auth/drive",
     aud: "https://oauth2.googleapis.com/token",
     iat: now,
     exp: now + 3600
@@ -103,7 +103,7 @@ async function walk(rootId, token) {
     visited.add(folder.id);
     for (const item of await listFolder(folder.id, token)) {
       if (item.mimeType === FOLDER_MIME) queue.push({ id: item.id, parts: [...folder.parts, safeName(item.name)] });
-      else if (item.mimeType !== SHORTCUT_MIME) files.push({ ...item, parts: folder.parts });
+      else if (item.mimeType !== SHORTCUT_MIME) files.push({ ...item, parts: folder.parts, parentId: folder.id });
     }
   }
   return files;
@@ -170,7 +170,7 @@ async function syncFromDrive() {
     seenPaths.add(relative.toLowerCase());
     const fingerprint = file.md5Checksum || `${file.version}:${file.modifiedTime}`;
     const absolute = path.join(MUSIC_DIR, relative);
-    manifest[file.id] = { path: relative, fingerprint };
+    manifest[file.id] = { path: relative, fingerprint, mimeType: file.mimeType, parentId: file.parentId };
     const unchanged = previous[file.id]?.fingerprint === fingerprint && previous[file.id]?.path === relative &&
       await fs.stat(absolute).then(() => true, () => false);
     if (unchanged) continue;
@@ -201,4 +201,87 @@ async function syncFromDrive() {
   return { remoteFiles: remoteFiles.length, downloaded, removed, errors, importLog };
 }
 
-module.exports = { syncFromDrive, runImport, hasCredentials, MUSIC_DIR };
+function slugifyPath(value) {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR")
+    .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
+// Grava a cifra editada de volta no arquivo original do Drive (somente .txt/.md/Google Docs).
+async function pushSongToDrive(songId, text) {
+  const credentials = await loadCredentials();
+  if (!credentials) return { pushed: false, reason: "Drive não configurado no servidor." };
+  const manifest = await readManifest();
+  const found = Object.entries(manifest).find(([, entry]) => `folder-${slugifyPath(entry.path)}` === songId);
+  if (!found) return { pushed: false, reason: "Esta música não veio do Drive." };
+  const [fileId, entry] = found;
+  const editable = entry.mimeType === DOC_MIME || /\.(txt|md)$/i.test(entry.path);
+  if (!editable) return { pushed: false, reason: "Arquivos PDF/Word não podem ser alterados pelo aplicativo." };
+  const token = await getAccessToken(credentials);
+  const response = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media&supportsAllDrives=true&fields=id,version,modifiedTime`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "text/plain; charset=utf-8" },
+    body: Buffer.from(text, "utf8")
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    const hint = response.status === 403 || response.status === 404
+      ? ` Compartilhe a pasta com ${credentials.client_email} como Editor.` : "";
+    return { pushed: false, reason: `Google Drive (${response.status}): ${body.error?.message || "erro"}.${hint}` };
+  }
+  await fs.writeFile(path.join(MUSIC_DIR, entry.path), text, "utf8");
+  if (entry.mimeType !== DOC_MIME) {
+    const meta = await response.json().catch(() => ({}));
+    manifest[fileId] = { ...entry, fingerprint: `${meta.version}:${meta.modifiedTime}` };
+    await fs.writeFile(MANIFEST_FILE, JSON.stringify(manifest, null, 2));
+  }
+  return { pushed: true };
+}
+
+// Envia .txt convertidos para a mesma pasta do Drive de cada original (exige conta de serviço como Editor).
+async function uploadTexts(items) {
+  const credentials = await loadCredentials();
+  if (!credentials) throw new Error("Credenciais do Google não encontradas.");
+  const token = await getAccessToken(credentials);
+  const manifest = await readManifest();
+  const parentByPath = new Map(Object.values(manifest).map(entry => [entry.path, entry.parentId]));
+  const namesByParent = new Map();
+  const result = { uploaded: 0, existing: 0, errors: [] };
+  for (const item of items) {
+    const parentId = parentByPath.get(item.source);
+    if (!parentId) {
+      result.errors.push(`${item.source}: pasta de origem desconhecida (rode a sincronização novamente).`);
+      continue;
+    }
+    try {
+      if (!namesByParent.has(parentId)) {
+        namesByParent.set(parentId, new Set((await listFolder(parentId, token)).map(file => file.name.toLowerCase())));
+      }
+      if (namesByParent.get(parentId).has(item.name.toLowerCase())) {
+        result.existing++;
+        continue;
+      }
+      const boundary = `sound-asaph-${crypto.randomUUID()}`;
+      const body = Buffer.concat([
+        Buffer.from(`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify({ name: item.name, parents: [parentId] })}\r\n--${boundary}\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n`),
+        Buffer.from(item.text, "utf8"),
+        Buffer.from(`\r\n--${boundary}--`)
+      ]);
+      const response = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true&fields=id", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": `multipart/related; boundary=${boundary}` },
+        body
+      });
+      if (!response.ok) {
+        const detail = await response.json().catch(() => ({}));
+        throw new Error(detail.error?.message || `erro ${response.status}`);
+      }
+      namesByParent.get(parentId).add(item.name.toLowerCase());
+      result.uploaded++;
+    } catch (error) {
+      result.errors.push(`${item.source}: ${error.message}`);
+    }
+  }
+  return result;
+}
+
+module.exports = { syncFromDrive, runImport, hasCredentials, pushSongToDrive, uploadTexts, MUSIC_DIR };

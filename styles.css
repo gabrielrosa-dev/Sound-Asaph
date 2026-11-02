@@ -271,3 +271,25 @@ body.stage-mode { --page: #17111f; --surface: #21182b; --surface-soft: #2c203b; 
 .worship-key { display: inline-block; margin-bottom: 14px; color: #a99bb8; font-size: calc(var(--worship-size) * .6); font-weight: 700; letter-spacing: .08em; }
 .worship-lyrics { padding: 0; font-size: var(--worship-size); }
 .worship-lyrics .chord { color: #e0b8ff; }
+body:not([data-role="admin"]) [data-admin-only] { display: none !important; }
+.schedule-dialog { width: min(860px, calc(100vw - 24px)); }
+.schedule-body { display: flex; flex-direction: column; gap: 18px; padding: 24px; }
+.schedule-section { display: flex; flex-direction: column; gap: 10px; padding-top: 14px; border-top: 1px solid var(--line); }
+.schedule-section h3 { margin: 0; font-family: Manrope, sans-serif; font-size: 15px; }
+.schedule-inline { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.schedule-inline input { min-height: 37px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); color: var(--ink); font-size: 13px; }
+.schedule-size { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; }
+.schedule-size input { width: 64px; }
+.schedule-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.schedule-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; background: var(--green-soft); color: var(--green-dark); font-size: 12px; font-weight: 600; }
+.schedule-chip button { min-width: 24px; min-height: 24px; border: 0; border-radius: 50%; background: transparent; color: inherit; font-size: 16px; cursor: pointer; }
+.schedule-empty { margin: 0; color: var(--muted); font-size: 12px; }
+.schedule-availability { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.schedule-day { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; font-size: 13px; cursor: pointer; }
+.schedule-day input { width: 20px; height: 20px; accent-color: var(--green); }
+.schedule-heading-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.schedule-heading-row > div { display: flex; gap: 8px; }
+.schedule-table { display: flex; flex-direction: column; gap: 8px; }
+.schedule-row { display: grid; grid-template-columns: 110px 1fr auto; align-items: center; gap: 10px; padding: 10px; border: 1px solid var(--line); border-radius: 8px; }
+.schedule-row select, .schedule-section select { min-height: 37px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); color: var(--ink); font-size: 12px; }
+@media (max-width: 640px) { .schedule-row { grid-template-columns: 1fr; } }

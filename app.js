@@ -285,12 +285,7 @@ function renderVoiceAudio(song) {
         playDriveAudio.disabled = true;
         playDriveAudio.textContent = "Carregando áudio...";
         try {
-          const { googleClientId } = window.SOUND_ASAPH_CONFIG || {};
-          if (!googleClientId) throw new Error("Configure o Client ID do Google para reproduzir áudios do Drive.");
-          let accessToken = driveAccessToken;
-          if (!accessToken || Date.now() >= driveAccessTokenExpiresAt - 30_000) {
-            accessToken = await requestDriveAccessToken(googleClientId);
-          }
+          const accessToken = currentDriveToken();
           const response = await driveFetch(
             `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(track.id)}?alt=media`,
             accessToken
@@ -420,7 +415,9 @@ function setRoleInterface() {
   document.querySelector("#profile-label").textContent = ROLE_LABELS[currentRole] || "Perfil";
   document.querySelector("#song-import-button").hidden = currentRole !== "admin";
   document.querySelector("#drive-sync-button").hidden = !currentRole;
-  document.querySelector("#edit-song-button").hidden = !currentRole;
+  document.querySelector("#schedule-button").hidden = !currentRole;
+  document.querySelector("#edit-song-button").hidden = currentRole !== "admin";
+  document.querySelector("#login-password-field").hidden = document.querySelector("#login-role").value !== "admin";
   document.querySelector("#delete-song-button").hidden = currentRole !== "admin";
   if (currentRole && currentSong()) {
     renderCatalog(searchInput.value);
@@ -463,7 +460,8 @@ function loginDemoRole(event) {
   const role = document.querySelector("#login-role").value;
   const password = document.querySelector("#login-password").value;
   const error = document.querySelector("#login-error");
-  if (!Object.hasOwn(ROLE_LABELS, role) || password !== DEMO_PASSWORD) {
+  const { adminPassword } = window.SOUND_ASAPH_CONFIG || {};
+  if (!Object.hasOwn(ROLE_LABELS, role) || (role === "admin" && password !== (adminPassword || DEMO_PASSWORD))) {
     error.textContent = "Perfil ou senha incorretos.";
     error.hidden = false;
     return;
@@ -481,7 +479,8 @@ function loginDemoRole(event) {
   error.hidden = true;
   document.querySelector("#login-dialog").close();
   setRoleInterface();
-  showToast(`Perfil ${ROLE_LABELS[role]} da demonstração ativado.`);
+  startPublicDriveSync();
+  showToast(`Perfil ${ROLE_LABELS[role]} ativado.`);
 }
 
 function logoutDemoRole() {
@@ -1009,11 +1008,15 @@ async function saveSongEdit(event) {
         body: JSON.stringify({ id: song.id, title, artist, key, lyrics })
       });
       if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || `erro ${response.status}`);
-      serverOverrides.edits[song.id] = { title, artist, key, lyrics };
+      const result = await response.json().catch(() => ({}));
+      if (result.drive) delete serverOverrides.edits[song.id];
+      else serverOverrides.edits[song.id] = { title, artist, key, lyrics };
       songs = songs.map(item => item.id === song.id ? updatedSong : item);
       document.querySelector("#edit-song-dialog").close();
       selectSong(song.id);
-      showToast("Cifra salva no servidor do Sound-Asaph.");
+      showToast(result.drive
+        ? "Cifra salva no Drive e disponível para todos."
+        : `Cifra salva no servidor para todos os dispositivos.${result.driveReason ? ` Drive não alterado: ${result.driveReason}` : ""}`);
     } catch (error) {
       console.error("Não foi possível salvar a cifra no servidor.", error);
       showToast(`Não foi possível salvar: ${error.message}`);
@@ -1228,8 +1231,20 @@ function requestDriveAccessToken(clientId) {
   });
 }
 
+function currentDriveToken() {
+  return driveAccessToken && Date.now() < driveAccessTokenExpiresAt - 30_000 ? driveAccessToken : null;
+}
+
+// Sem token (Músico/Vocal) a leitura usa a chave de API, válida para pastas públicas por link.
+function driveKeyedFetch(url, accessToken, options) {
+  if (accessToken) return fetch(url, options);
+  const { apiKey } = window.SOUND_ASAPH_CONFIG || {};
+  if (!apiKey) return Promise.reject(new Error("Configure apiKey em drive-config.js (veja o README) ou conecte com uma conta Google."));
+  return fetch(`${url}${url.includes("?") ? "&" : "?"}key=${encodeURIComponent(apiKey)}`);
+}
+
 async function driveFetch(url, accessToken) {
-  const response = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+  const response = await driveKeyedFetch(url, accessToken, { headers: { Authorization: `Bearer ${accessToken}` } });
   if (!response.ok) {
     let detail = "";
     try {
@@ -1397,10 +1412,17 @@ async function saveSongToDrive(song, accessToken, folderId) {
   return { ...song, driveFileId: result.id, driveName: safeName, driveParentId: parentId, driveVersion: result.version };
 }
 
+function canExtractDocuments() {
+  return ["localhost", "127.0.0.1"].includes(location.hostname);
+}
+
 function supportedDriveFiles(files) {
   return files.filter(file => {
     if (file.mimeType === GOOGLE_DOCUMENT_MIME) return true;
-    return SUPPORTED_DRIVE_EXTENSIONS.has(file.name.slice(file.name.lastIndexOf(".")).toLowerCase());
+    const extension = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
+    // PDF/Word só podem ser lidos com o servidor local; no site publicado use os .txt convertidos.
+    if (!canExtractDocuments() && [".pdf", ".doc", ".docx"].includes(extension)) return false;
+    return SUPPORTED_DRIVE_EXTENSIONS.has(extension);
   });
 }
 
@@ -1637,9 +1659,9 @@ async function syncGoogleDrive(accessToken, onProgress = () => {}, quiet = false
 }
 
 async function performGoogleDriveSync(accessToken, onProgress, quiet) {
-  const { googleClientId, driveFolderId } = window.SOUND_ASAPH_CONFIG || {};
-  if (!googleClientId || !driveFolderId) {
-    throw new Error("Preencha googleClientId e driveFolderId em drive-config.js antes de conectar.");
+  const { googleClientId, apiKey, driveFolderId } = window.SOUND_ASAPH_CONFIG || {};
+  if ((!googleClientId && !apiKey) || !driveFolderId) {
+    throw new Error("Preencha apiKey (ou googleClientId) e driveFolderId em drive-config.js antes de conectar.");
   }
   if (!/^[A-Za-z0-9_-]+$/.test(driveFolderId)) {
     throw new Error("O ID da pasta no drive-config.js não parece válido.");
@@ -1721,15 +1743,23 @@ async function performGoogleDriveSync(accessToken, onProgress, quiet) {
     sundaySongIds = sundaySongIds.filter(id => songs.some(song => song.id === id));
     saveSundaySetlist();
     hasDriveCatalog = true;
+    const keepSongId = selectedSongId;
     renderCatalog(searchInput.value);
-    if (songs.length) selectSong(songs[0].id);
-  } else if (currentSong()) {
+    const keepSteps = transposeSteps;
+    const target = songs.find(song => song.id === keepSongId) || songs[0];
+    if (target) {
+      selectSong(target.id);
+      if (target.id === keepSongId && keepSteps) { transposeSteps = keepSteps; renderLyrics(); }
+    }
     renderVoiceAudio(currentSong());
   }
   lastDriveSyncAt = Date.now();
 
-  const unsupported = files.length - candidates.length - driveAudios.length;
+  const unsupported = files.filter(file => file.name !== "escala.json").length - candidates.length - driveAudios.length;
   const notices = [];
+  const pendingDocuments = canExtractDocuments() ? 0 : files.filter(file =>
+    /\.(pdf|docx?)$/i.test(file.name)).length;
+  if (pendingDocuments) notices.push(`${pendingDocuments} PDF/Word ainda não convertidos para .txt (rode npm run converter).`);
   if (candidates.length === 0) notices.push("Nenhuma cifra compatível foi encontrada; o catálogo que já estava neste dispositivo foi mantido.");
   if (oversizedAudios.length) notices.push(`${oversizedAudios.length} áudio(s) excedem 100 MB e não poderão ser reproduzidos no navegador.`);
   if (failures.length) notices.push(`${failures.length} arquivo(s) não importado(s): ${failures.join(" | ")}`);
@@ -1922,15 +1952,15 @@ function stopDriveAutoSync() {
 
 async function refreshDriveInBackground() {
   if (!currentRole || document.hidden || !navigator.onLine || driveSyncPromise || driveAutoSyncRunning) return;
-  const { googleClientId } = window.SOUND_ASAPH_CONFIG || {};
-  if (!googleClientId) return;
+  const { googleClientId, apiKey } = window.SOUND_ASAPH_CONFIG || {};
+  if (!googleClientId && !apiKey) return;
   driveAutoSyncRunning = true;
   try {
-    let accessToken = driveAccessToken;
-    if (!accessToken || Date.now() >= driveAccessTokenExpiresAt - 60_000) {
-      accessToken = await requestDriveAccessToken(googleClientId);
-    }
-    await syncGoogleDrive(accessToken, () => {}, true);
+    let accessToken = currentDriveToken();
+    if (!accessToken && !apiKey) accessToken = await requestDriveAccessToken(googleClientId);
+    await syncGoogleDrive(accessToken, text => {
+      if (!hasDriveCatalog) document.querySelector("#drive-status").textContent = text;
+    }, true);
   } catch (error) {
     console.error("A atualização automática do Google Drive falhou.", error);
     const status = document.querySelector("#drive-status");
@@ -1948,6 +1978,13 @@ async function refreshDriveInBackground() {
 function startDriveAutoSync() {
   stopDriveAutoSync();
   driveSyncTimer = setInterval(refreshDriveInBackground, DRIVE_SYNC_INTERVAL_MS);
+}
+
+function startPublicDriveSync() {
+  const { apiKey } = window.SOUND_ASAPH_CONFIG || {};
+  if (serverMode || !apiKey || !currentRole) return;
+  startDriveAutoSync();
+  refreshDriveInBackground();
 }
 
 async function fetchServerData() {
@@ -2050,9 +2087,10 @@ async function handleDriveSync() {
   document.querySelector("#drive-status").textContent = "Aguardando autorização do Google...";
   document.querySelector("#drive-status").title = "";
   try {
-    const { googleClientId } = window.SOUND_ASAPH_CONFIG || {};
-    if (!googleClientId) throw new Error("Preencha googleClientId em drive-config.js antes de conectar.");
-    const accessToken = await requestDriveAccessToken(googleClientId);
+    const { googleClientId, apiKey } = window.SOUND_ASAPH_CONFIG || {};
+    if (!googleClientId && !apiKey) throw new Error("Preencha apiKey ou googleClientId em drive-config.js antes de conectar.");
+    // Músico/Vocal leem pela chave de API; o Líder entra com Google para poder gravar.
+    const accessToken = apiKey && (currentRole !== "admin" || !googleClientId) ? null : await requestDriveAccessToken(googleClientId);
     await syncGoogleDrive(accessToken, status => {
       syncLabel.textContent = status;
       document.querySelector("#drive-status").textContent = status;
@@ -2070,7 +2108,7 @@ async function handleDriveSync() {
     showToast(error.message || "Não foi possível sincronizar o Google Drive.");
   } finally {
     if (document.querySelector("#drive-status").textContent !== "Falha ao sincronizar com o Google Drive") {
-      document.querySelector("#drive-sync-label").textContent = driveAccessToken ? "Atualizar Drive" : "Conectar Drive";
+      document.querySelector("#drive-sync-label").textContent = driveAccessToken || window.SOUND_ASAPH_CONFIG?.apiKey ? "Atualizar Drive" : "Conectar Drive";
     }
     button.disabled = false;
   }
@@ -2220,6 +2258,443 @@ document.addEventListener("keydown", event => {
   if (event.key === "Escape" && !document.querySelector("#worship-mode").hidden) closeWorshipMode();
 });
 
+const SCHEDULE_CACHE_KEY = "sound-asaph-schedule";
+let schedule = { members: [], dates: [], availability: {}, assignments: {}, teamSize: 5, periods: {} };
+let scheduleMemberId = "";
+
+function scheduleElement(tag, className, content) {
+  const element = document.createElement(tag);
+  if (className) element.className = className;
+  if (content !== undefined) element.textContent = content;
+  return element;
+}
+
+function formatScheduleDate(date) {
+  const [year, month, day] = date.split("-").map(Number);
+  return new Date(year, month - 1, day).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" });
+}
+
+function scheduleApiUrl() {
+  return (window.SOUND_ASAPH_CONFIG || {}).scheduleApiUrl || "";
+}
+
+let schedulePassword = "";
+
+// O Apps Script recebe text/plain para evitar a requisição de pré-verificação (CORS).
+async function scheduleRequest(body) {
+  const response = await fetch(scheduleApiUrl(), {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify(body)
+  });
+  const result = await response.json();
+  if (!response.ok || result.error) throw new Error(result.error || `erro ${response.status}`);
+  return result;
+}
+
+async function loadSchedule() {
+  const defaults = { members: [], dates: [], availability: {}, assignments: {}, teamSize: 5, periods: {} };
+  try {
+    if (serverMode) {
+      const response = await fetch("/api/schedule", { cache: "no-store" });
+      if (!response.ok) throw new Error(`erro ${response.status}`);
+      schedule = await response.json();
+    } else if (scheduleApiUrl()) {
+      const response = await fetch(scheduleApiUrl(), { cache: "no-store" });
+      if (!response.ok) throw new Error(`erro ${response.status}`);
+      schedule = { ...defaults, ...await response.json() };
+    } else {
+      schedule = { ...defaults, ...JSON.parse(localStorage.getItem(SCHEDULE_CACHE_KEY) || "{}") };
+    }
+  } catch (error) {
+    console.error("Não foi possível carregar a escala.", error);
+    showToast("Não foi possível carregar a escala.");
+  }
+}
+
+// changedMemberId: mudança só na disponibilidade de um membro (qualquer perfil pode enviar).
+async function saveSchedule(changedMemberId) {
+  try {
+    if (serverMode) {
+      const response = await fetch("/api/schedule", {
+        method: "PUT",
+        headers: { ...SERVER_HEADERS, "Content-Type": "application/json" },
+        body: JSON.stringify(schedule)
+      });
+      if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || `erro ${response.status}`);
+      schedule = await response.json();
+    } else if (scheduleApiUrl()) {
+      if (changedMemberId) {
+        schedule = { ...schedule, ...await scheduleRequest({
+          action: "availability", memberId: changedMemberId, dates: schedule.availability[changedMemberId] || []
+        }) };
+      } else {
+        if (currentRole !== "admin") throw new Error("Somente o Líder pode alterar a escala.");
+        schedulePassword ||= window.prompt("Senha da escala (a mesma configurada no Apps Script):") || "";
+        if (!schedulePassword) throw new Error("Senha não informada.");
+        try {
+          schedule = { ...schedule, ...await scheduleRequest({ action: "save", password: schedulePassword, schedule }) };
+        } catch (error) {
+          if (/senha/i.test(error.message)) schedulePassword = "";
+          throw error;
+        }
+      }
+    } else {
+      localStorage.setItem(SCHEDULE_CACHE_KEY, JSON.stringify(schedule));
+    }
+  } catch (error) {
+    console.error("Não foi possível salvar a escala.", error);
+    showToast(`Não foi possível salvar a escala: ${error.message}`);
+    await loadSchedule();
+  }
+  renderSchedule();
+}
+
+function isMemberAvailable(memberId, date) {
+  return (schedule.availability[memberId] || []).includes(date);
+}
+
+function memberRoles(member) {
+  return String(member.role || "").split(/[,;+]/).map(role => role.trim().toLowerCase()).filter(Boolean)
+    .flatMap(role => role === "qualquer nipe" ? ["tenor", "melodia", "contralto"] : [role]);
+}
+
+let scheduleMonth = "";
+
+// Mês em andamento: o primeiro cujo último domingo ainda não passou.
+function activeScheduleMonth() {
+  const now = new Date();
+  for (let ahead = 0; ahead < 3; ahead++) {
+    const date = new Date(now.getFullYear(), now.getMonth() + ahead, 1);
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+    if (sundaysOf(key).pop() >= todayKey()) return key;
+  }
+  return todayKey().slice(0, 7);
+}
+
+function monthKey(date) {
+  return date.slice(0, 7);
+}
+
+function monthLabel(key) {
+  const [year, month] = key.split("-").map(Number);
+  const label = new Date(year, month - 1, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+function sundaysOf(key) {
+  const [year, month] = key.split("-").map(Number);
+  const day = new Date(year, month - 1, 1);
+  day.setDate(1 + ((7 - day.getDay()) % 7));
+  const sundays = [];
+  while (day.getMonth() === month - 1) {
+    sundays.push(`${year}-${String(month).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`);
+    day.setDate(day.getDate() + 7);
+  }
+  return sundays;
+}
+
+// Fluxo do mês: aguardando -> aberta (período definido pelo Líder) -> montagem -> fixada -> encerrada (após o último domingo).
+function todayKey() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}
+
+function monthStatus(key) {
+  const today = todayKey();
+  const sundays = sundaysOf(key);
+  if (sundays.length && today > sundays[sundays.length - 1]) return "encerrada";
+  const period = (schedule.periods || {})[key];
+  if (!period) return "aguardando";
+  if (period.locked) return "fixada";
+  if (today < period.start) return "aguardando";
+  return today <= period.end ? "aberta" : "montagem";
+}
+
+function previousMonthEnd(key) {
+  const [year, month] = key.split("-").map(Number);
+  const previous = sundaysOf(month === 1 ? `${year - 1}-12` : `${year}-${String(month - 1).padStart(2, "0")}`);
+  if (!previous.length) return "";
+  const day = new Date(`${previous[previous.length - 1]}T12:00`);
+  day.setDate(day.getDate() + 1);
+  return `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
+}
+
+function formatShortDate(date) {
+  const [, month, day] = date.split("-");
+  return `${day}/${month}`;
+}
+
+function statusMessage(key) {
+  const period = (schedule.periods || {})[key];
+  const status = monthStatus(key);
+  if (status === "aberta") return `Preenchimento aberto até ${formatShortDate(period.end)}. Marque os domingos em que pode participar.`;
+  if (status === "montagem") return "Preenchimento encerrado. O Líder está montando a escala.";
+  if (status === "fixada") return "Escala finalizada e fixada.";
+  if (status === "encerrada") return "Mês encerrado. A escala do mês seguinte já pode ser liberada pelo Líder.";
+  return period ? `Preenchimento abre em ${formatShortDate(period.start)}.` : "O Líder ainda não abriu o preenchimento deste mês.";
+}
+
+// Todos os domingos do mês entram automaticamente; o Líder só acrescenta datas extras.
+function monthDates() {
+  const extras = schedule.dates.filter(date => monthKey(date) === scheduleMonth);
+  return [...new Set([...sundaysOf(scheduleMonth), ...extras])].sort();
+}
+
+function generateSchedule() {
+  const counts = Object.fromEntries(schedule.members.map(member => [member.id, 0]));
+  const lastIndex = Object.fromEntries(schedule.members.map(member => [member.id, -1]));
+  const roleKeys = [...new Set(schedule.members.flatMap(memberRoles))];
+  const byFairness = (a, b) => counts[a.id] - counts[b.id] ||
+    lastIndex[a.id] - lastIndex[b.id] || a.name.localeCompare(b.name, "pt-BR");
+  const assignments = { ...schedule.assignments };
+  monthDates().forEach((date, index) => {
+    const pool = schedule.members.filter(member => isMemberAvailable(member.id, date));
+    const team = [];
+    const pick = member => {
+      team.push(member);
+      pool.splice(pool.indexOf(member), 1);
+      counts[member.id]++;
+      lastIndex[member.id] = index;
+    };
+    // Uma pessoa por função, começando pelas funções com menos gente disponível.
+    const openRoles = roleKeys
+      .map(role => ({ role, people: pool.filter(member => memberRoles(member).includes(role)) }))
+      .filter(item => item.people.length)
+      .sort((a, b) => a.people.length - b.people.length);
+    openRoles.forEach(({ role }) => {
+      const candidates = pool.filter(member => memberRoles(member).includes(role)).sort(byFairness);
+      if (candidates.length && !team.some(member => memberRoles(member).includes(role))) pick(candidates[0]);
+    });
+    // Sem funções cadastradas, completa pelo tamanho da equipe.
+    while (!roleKeys.length && team.length < schedule.teamSize && pool.length) {
+      pool.sort(byFairness);
+      pick(pool[0]);
+    }
+    assignments[date] = team.map(member => member.id);
+  });
+  schedule.assignments = assignments;
+}
+function scheduleAsText() {
+  const names = Object.fromEntries(schedule.members.map(member => [member.id, member]));
+  const lines = monthDates().map(date => {
+    const team = (schedule.assignments[date] || []).map(id => names[id]).filter(Boolean)
+      .map(member => member.role ? `${member.name} (${member.role})` : member.name);
+    return `${formatScheduleDate(date)}: ${team.join(", ") || "—"}`;
+  });
+  return [`Escala de ${monthLabel(scheduleMonth)}`, ...lines].join("\n");
+}
+
+function renderSchedule() {
+  const admin = currentRole === "admin";
+  const byId = Object.fromEntries(schedule.members.map(member => [member.id, member]));
+  document.querySelector("#schedule-team-size").value = schedule.teamSize;
+
+  schedule.periods ||= {};
+  scheduleMonth = activeScheduleMonth();
+  const status = monthStatus(scheduleMonth);
+  const canEditSchedule = admin && ["aguardando", "aberta", "montagem"].includes(status);
+  const canMarkAvailability = admin ? canEditSchedule : status === "aberta";
+  document.querySelector("#schedule-status").textContent = statusMessage(scheduleMonth);
+  const period = schedule.periods[scheduleMonth];
+  document.querySelector("#schedule-period-start").value = period?.start || previousMonthEnd(scheduleMonth);
+  document.querySelector("#schedule-period-end").value = period?.end || "";
+  document.querySelector("#schedule-lock").hidden = !["aberta", "montagem"].includes(status);
+  document.querySelector("#schedule-unlock").hidden = status !== "fixada";
+  document.querySelector("#schedule-generate").hidden = !canEditSchedule;
+  document.querySelector("#schedule-month-title").textContent = monthLabel(scheduleMonth);
+  const visibleDates = monthDates();
+
+  const members = document.querySelector("#schedule-members");
+  members.replaceChildren(...schedule.members.map(member => {
+    const chip = scheduleElement("span", "schedule-chip", member.role ? `${member.name} · ${member.role}` : member.name);
+    const remove = scheduleElement("button", "", "×");
+    remove.type = "button";
+    remove.setAttribute("aria-label", `Remover ${member.name}`);
+    remove.addEventListener("click", () => {
+      schedule.members = schedule.members.filter(item => item.id !== member.id);
+      delete schedule.availability[member.id];
+      for (const date of Object.keys(schedule.assignments)) {
+        schedule.assignments[date] = schedule.assignments[date].filter(id => id !== member.id);
+      }
+      saveSchedule();
+    });
+    chip.append(remove);
+    return chip;
+  }));
+
+  const dates = document.querySelector("#schedule-dates");
+  dates.replaceChildren(...visibleDates.filter(date => schedule.dates.includes(date) && new Date(`${date}T12:00`).getDay() !== 0).map(date => {
+    const chip = scheduleElement("span", "schedule-chip", formatScheduleDate(date));
+    const remove = scheduleElement("button", "", "×");
+    remove.type = "button";
+    remove.setAttribute("aria-label", `Remover ${formatScheduleDate(date)}`);
+    remove.addEventListener("click", () => {
+      schedule.dates = schedule.dates.filter(item => item !== date);
+      delete schedule.assignments[date];
+      saveSchedule();
+    });
+    chip.append(remove);
+    return chip;
+  }));
+
+  const select = document.querySelector("#schedule-availability-member");
+  if (!byId[scheduleMemberId]) scheduleMemberId = schedule.members[0]?.id || "";
+  select.replaceChildren(...schedule.members.map(member => new Option(member.name, member.id)));
+  select.value = scheduleMemberId;
+  const availability = document.querySelector("#schedule-availability");
+  if (!schedule.members.length || !visibleDates.length) {
+    availability.replaceChildren(scheduleElement("p", "schedule-empty", schedule.members.length
+      ? "Nenhuma data cadastrada neste mês ainda." : "Nenhum membro cadastrado ainda. O Líder pode adicioná-los acima."));
+  } else {
+    availability.replaceChildren(...visibleDates.map(date => {
+      const label = scheduleElement("label", "schedule-day");
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      input.checked = isMemberAvailable(scheduleMemberId, date);
+      input.disabled = !canMarkAvailability;
+      input.addEventListener("change", () => {
+        const current = new Set(schedule.availability[scheduleMemberId] || []);
+        if (input.checked) current.add(date); else current.delete(date);
+        schedule.availability[scheduleMemberId] = [...current].sort();
+        saveSchedule(scheduleMemberId);
+      });
+      label.append(input, scheduleElement("span", "", formatScheduleDate(date)));
+      return label;
+    }));
+  }
+
+  const table = document.querySelector("#schedule-table");
+  if (!visibleDates.length) {
+    table.replaceChildren(scheduleElement("p", "schedule-empty", "Cadastre datas deste mês para montar a escala."));
+    return;
+  }
+  table.replaceChildren(...visibleDates.map(date => {
+    const row = scheduleElement("div", "schedule-row");
+    row.append(scheduleElement("strong", "", formatScheduleDate(date)));
+    const team = scheduleElement("div", "schedule-chips");
+    const assigned = schedule.assignments[date] || [];
+    for (const id of assigned) {
+      if (!byId[id]) continue;
+      const chip = scheduleElement("span", "schedule-chip", byId[id].role ? `${byId[id].name} · ${byId[id].role}` : byId[id].name);
+      if (canEditSchedule) {
+        const remove = scheduleElement("button", "", "×");
+        remove.type = "button";
+        remove.setAttribute("aria-label", `Tirar ${byId[id].name} de ${formatScheduleDate(date)}`);
+        remove.addEventListener("click", () => {
+          schedule.assignments[date] = assigned.filter(item => item !== id);
+          saveSchedule();
+        });
+        chip.append(remove);
+      }
+      team.append(chip);
+    }
+    if (!assigned.length) team.append(scheduleElement("span", "schedule-empty", "Sem escala"));
+    row.append(team);
+    if (canEditSchedule) {
+      const add = document.createElement("select");
+      add.setAttribute("aria-label", `Adicionar membro em ${formatScheduleDate(date)}`);
+      add.append(new Option("+ Adicionar membro", ""));
+      for (const member of schedule.members.filter(item => !assigned.includes(item.id))) {
+        add.append(new Option(isMemberAvailable(member.id, date) ? member.name : `${member.name} (indisponível)`, member.id));
+      }
+      add.addEventListener("change", () => {
+        if (!add.value) return;
+        schedule.assignments[date] = [...assigned, add.value];
+        saveSchedule();
+      });
+      row.append(add);
+    }
+    return row;
+  }));
+}
+
+async function openScheduleDialog() {
+  await loadSchedule();
+  renderSchedule();
+  document.querySelector("#schedule-dialog").showModal();
+}
+
+document.querySelector("#login-role").addEventListener("change", event => {
+  document.querySelector("#login-password-field").hidden = event.target.value !== "admin";
+});
+document.querySelector("#schedule-button").addEventListener("click", openScheduleDialog);
+document.querySelector("#close-schedule").addEventListener("click", () => document.querySelector("#schedule-dialog").close());
+document.querySelector("#schedule-member-form").addEventListener("submit", event => {
+  event.preventDefault();
+  const name = document.querySelector("#schedule-member-name").value.trim();
+  if (!name) return;
+  schedule.members.push({
+    id: `m${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+    name,
+    role: document.querySelector("#schedule-member-role").value.trim()
+  });
+  event.target.reset();
+  saveSchedule();
+});
+document.querySelector("#schedule-date-form").addEventListener("submit", event => {
+  event.preventDefault();
+  const date = document.querySelector("#schedule-date-input").value;
+  if (!date) return;
+  if (monthKey(date) !== scheduleMonth) {
+    showToast(`Escolha uma data de ${monthLabel(scheduleMonth)}.`);
+    return;
+  }
+  schedule.dates = [...new Set([...schedule.dates, date])].sort();
+  document.querySelector("#schedule-date-input").value = "";
+  saveSchedule();
+});
+document.querySelector("#schedule-period-form").addEventListener("submit", event => {
+  event.preventDefault();
+  const start = document.querySelector("#schedule-period-start").value;
+  const end = document.querySelector("#schedule-period-end").value;
+  if (!start || !end || start > end) {
+    showToast("Informe um período válido (início antes do fim).");
+    return;
+  }
+  schedule.periods = { ...schedule.periods, [scheduleMonth]: { start, end, locked: false } };
+  saveSchedule();
+});
+document.querySelector("#schedule-lock").addEventListener("click", () => {
+  const period = schedule.periods[scheduleMonth];
+  if (!period || !window.confirm(`Fixar a escala de ${monthLabel(scheduleMonth)}? Ninguém poderá alterá-la até você reabrir a edição.`)) return;
+  schedule.periods = { ...schedule.periods, [scheduleMonth]: { ...period, locked: true } };
+  saveSchedule();
+});
+document.querySelector("#schedule-unlock").addEventListener("click", () => {
+  const period = schedule.periods[scheduleMonth];
+  if (!period) return;
+  schedule.periods = { ...schedule.periods, [scheduleMonth]: { ...period, locked: false } };
+  saveSchedule();
+});
+document.querySelector("#schedule-team-size").addEventListener("change", event => {
+  schedule.teamSize = Math.min(30, Math.max(1, Math.round(Number(event.target.value)) || 5));
+  saveSchedule();
+});
+document.querySelector("#schedule-availability-member").addEventListener("change", event => {
+  scheduleMemberId = event.target.value;
+  renderSchedule();
+});
+document.querySelector("#schedule-generate").addEventListener("click", () => {
+  if (!schedule.members.length || !monthDates().length) {
+    showToast("Cadastre membros e datas deste mês, e peça para cada um marcar os dias disponíveis.");
+    return;
+  }
+  if (monthDates().some(date => (schedule.assignments[date] || []).length) &&
+      !window.confirm(`Gerar uma nova escala substitui a de ${monthLabel(scheduleMonth)}, incluindo ajustes manuais. Continuar?`)) return;
+  generateSchedule();
+  saveSchedule();
+});
+document.querySelector("#schedule-copy").addEventListener("click", async () => {
+  try {
+    await navigator.clipboard.writeText(scheduleAsText());
+    showToast("Escala copiada.");
+  } catch (error) {
+    console.error("Não foi possível copiar a escala.", error);
+    showToast("Não foi possível copiar a escala neste navegador.");
+  }
+});
+
 setupInstallableApp();
 setRoleInterface();
 setStageMode(loadStageMode());
@@ -2286,6 +2761,7 @@ Promise.all([
       document.querySelector("#breadcrumb-title").textContent = "Catálogo vazio";
       lyricsElement.replaceChildren();
     }
+    startPublicDriveSync();
   })
   .catch(error => {
     console.error("Não foi possível carregar o catálogo.", error);

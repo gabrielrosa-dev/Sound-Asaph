@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node scripts/serve.js",
     "import": "node scripts/import-songs.js",
-    "import:folder": "node scripts/import-folder-songs.js"
+    "import:folder": "node scripts/import-folder-songs.js",
+    "converter": "node scripts/convert-to-txt.js"
   },
   "dependencies": {
     "pdfjs-dist": "4.2.67",

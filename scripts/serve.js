@@ -4,17 +4,21 @@
 const http = require("node:http");
 const fs = require("node:fs");
 const fsp = fs.promises;
+const os = require("node:os");
 const path = require("node:path");
 const WordExtractor = require("word-extractor");
-const { syncFromDrive, runImport, hasCredentials, MUSIC_DIR } = require("./drive-sync");
+const { syncFromDrive, runImport, hasCredentials, pushSongToDrive, MUSIC_DIR } = require("./drive-sync");
 
 const ROOT = path.resolve(__dirname, "..");
 const OVERRIDES_FILE = path.join(ROOT, "data", "overrides.json");
+const SCHEDULE_FILE = path.join(ROOT, "data", "schedule.json");
 const BLOCKED_PATHS = new Set(["credentials", "scripts", "node_modules", "package.json", "package-lock.json"]);
 const AUTO_SYNC_MS = Number(process.env.SYNC_INTERVAL_MS || 60_000);
 const syncState = { running: false, promise: null, lastResult: null, lastError: "", lastSyncAt: 0 };
 let catalogVersion = 0;
 const PORT = Number(process.env.PORT || 4173);
+// 0.0.0.0 permite que tablets e celulares da mesma rede acessem o servidor.
+const HOST = process.env.HOST || "0.0.0.0";
 const MAX_DOCUMENT_SIZE = 20 * 1024 * 1024;
 const wordExtractor = new WordExtractor();
 let pdfjsPromise;
@@ -157,6 +161,42 @@ async function writeOverrides(overrides) {
   catalogVersion = Date.now();
 }
 
+async function readSchedule() {
+  try {
+    const parsed = JSON.parse(await fsp.readFile(SCHEDULE_FILE, "utf8"));
+    return sanitizeSchedule(parsed);
+  } catch {
+    return sanitizeSchedule({});
+  }
+}
+
+const text = (value, max = 80) => typeof value === "string" ? value.trim().slice(0, max) : "";
+const isDate = value => typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
+
+function sanitizeSchedule(input) {
+  const members = (Array.isArray(input.members) ? input.members : []).slice(0, 100)
+    .filter(member => member && text(member.id, 40) && text(member.name))
+    .map(member => ({ id: text(member.id, 40), name: text(member.name), role: text(member.role, 40) }));
+  const ids = new Set(members.map(member => member.id));
+  const availability = {};
+  for (const [id, dates] of Object.entries(input.availability || {})) {
+    if (ids.has(id) && Array.isArray(dates)) availability[id] = [...new Set(dates.filter(isDate))].sort().slice(0, 400);
+  }
+  const assignments = {};
+  for (const [date, list] of Object.entries(input.assignments || {})) {
+    if (isDate(date) && Array.isArray(list)) assignments[date] = [...new Set(list.filter(id => ids.has(id)))];
+  }
+  const dates = [...new Set((Array.isArray(input.dates) ? input.dates : []).filter(isDate))].sort().slice(0, 400);
+  const teamSize = Math.min(30, Math.max(1, Math.round(Number(input.teamSize)) || 5));
+  const periods = {};
+  for (const [key, period] of Object.entries(input.periods || {})) {
+    if (/^\d{4}-\d{2}$/.test(key) && period && isDate(period.start) && isDate(period.end) && period.start <= period.end) {
+      periods[key] = { start: period.start, end: period.end, locked: period.locked === true };
+    }
+  }
+  return { members, dates, availability, assignments, teamSize, periods };
+}
+
 async function runSync(reason) {
   if (syncState.running) return syncState.promise;
   syncState.running = true;
@@ -194,11 +234,20 @@ async function handleApi(request, response, pathname) {
       });
       return;
     }
+    if (pathname === "/api/schedule" && request.method === "GET") {
+      sendJson(response, 200, await readSchedule());
+      return;
+    }
     if (request.headers["x-sound-asaph"] !== "1") {
       sendJson(response, 403, { error: "Requisição não autorizada." });
       return;
     }
-    if (pathname === "/api/sync" && request.method === "POST") {
+    if (pathname === "/api/schedule" && request.method === "PUT") {
+      const schedule = sanitizeSchedule(JSON.parse((await readBody(request, 1024 * 1024)).toString("utf8")));
+      await fsp.mkdir(path.dirname(SCHEDULE_FILE), { recursive: true });
+      await fsp.writeFile(SCHEDULE_FILE, JSON.stringify(schedule, null, 2));
+      sendJson(response, 200, schedule);
+    } else if (pathname === "/api/sync" && request.method === "POST") {
       sendJson(response, 200, await runSync("manual"));
     } else if (pathname === "/api/overrides/edit" && request.method === "PUT") {
       const { id, title, artist, key, lyrics } = JSON.parse((await readBody(request, 1024 * 1024)).toString("utf8"));
@@ -208,8 +257,18 @@ async function handleApi(request, response, pathname) {
       }
       const overrides = await readOverrides();
       overrides.edits[id] = { title, artist: artist || "", key: key || "", lyrics };
+      let drive = { pushed: false, reason: "" };
+      try {
+        drive = await pushSongToDrive(id, `Title: ${title}\nArtist: ${artist || ""}\nKey: ${key || ""}\n\n${lyrics}\n`);
+      } catch (error) {
+        drive = { pushed: false, reason: error.message };
+      }
+      if (drive.pushed) {
+        delete overrides.edits[id];
+        await runImport();
+      }
       await writeOverrides(overrides);
-      sendJson(response, 200, { ok: true });
+      sendJson(response, 200, { ok: true, drive: drive.pushed, driveReason: drive.reason || "" });
     } else if (pathname === "/api/overrides/delete" && request.method === "POST") {
       const { id } = JSON.parse((await readBody(request, 4096)).toString("utf8"));
       if (typeof id !== "string" || !id) {
@@ -351,8 +410,13 @@ http.createServer((request, response) => {
     });
     stream.pipe(response);
   });
-}).listen(PORT, "127.0.0.1", async () => {
+}).listen(PORT, HOST, async () => {
   console.log(`Sound-Asaph disponível em http://localhost:${PORT}`);
+  for (const addresses of Object.values(os.networkInterfaces())) {
+    for (const address of addresses || []) {
+      if (address.family === "IPv4" && !address.internal) console.log(`No tablet/celular (mesma rede Wi-Fi): http://${address.address}:${PORT}`);
+    }
+  }
   if (await hasCredentials()) {
     runSync("início").catch(() => {});
     setInterval(() => runSync("automática").catch(() => {}), AUTO_SYNC_MS);
