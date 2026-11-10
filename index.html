@@ -172,6 +172,10 @@
                 </select>
               </label>
               <span class="toolbar-divider"></span>
+              <div class="font-control" aria-label="Layout da cifra">
+                <button class="font-button layout-button" id="layout-toggle" type="button" aria-pressed="false" aria-label="Alternar coluna dupla" title="Alternar coluna dupla">▥</button>
+              </div>
+              <span class="toolbar-divider"></span>
               <div class="font-control" aria-label="Tamanho da fonte">
                 <button class="font-button font-smaller" id="font-down" aria-label="Diminuir fonte">A−</button>
                 <button class="font-button font-larger" id="font-up" aria-label="Aumentar fonte">A+</button>
@@ -319,11 +323,13 @@
     </dialog>
     <div class="worship-mode" id="worship-mode" role="dialog" aria-label="Modo Culto" hidden>
       <div class="worship-controls">
+        <button type="button" id="worship-layout" aria-label="Alternar coluna dupla" title="Alternar coluna dupla">▥</button>
         <button type="button" id="worship-font-down" aria-label="Diminuir fonte">A−</button>
         <button type="button" id="worship-font-up" aria-label="Aumentar fonte">A+</button>
         <button type="button" id="worship-exit" aria-label="Sair do Modo Culto">✕</button>
       </div>
       <div class="worship-songs" id="worship-songs"></div>
+      <div class="worship-dots" id="worship-dots" role="tablist" aria-label="Músicas do repertório"></div>
     </div>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
   </body>

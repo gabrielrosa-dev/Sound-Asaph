@@ -1,6 +1,6 @@
-"use strict";
+﻿"use strict";
 
-const CACHE_NAME = "sound-asaph-shell-v11";
+const CACHE_NAME = "sound-asaph-shell-v15";
 const SHELL_ASSETS = [
   "./",
   "./index.html",

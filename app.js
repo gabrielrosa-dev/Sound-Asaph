@@ -41,6 +41,21 @@ const DEMO_ROLE_CACHE_KEY = "sound-asaph-demo-role";
 const DELETED_SONGS_CACHE_KEY = "sound-asaph-demo-deleted-songs";
 const AUDIO_SETTINGS_CACHE_KEY = "sound-asaph-audio-settings";
 const STAGE_MODE_CACHE_KEY = "sound-asaph-stage-mode";
+const LAYOUT_CACHE_KEY = "sound-asaph-two-columns";
+let twoColumns = false;
+try { twoColumns = localStorage.getItem(LAYOUT_CACHE_KEY) === "true"; } catch (error) { /* sem armazenamento */ }
+
+function applyLayout() {
+  lyricsElement.classList.toggle("two-columns", twoColumns);
+  document.querySelectorAll(".worship-lyrics").forEach(element => element.classList.toggle("two-columns", twoColumns));
+  document.querySelectorAll("#layout-toggle, #worship-layout").forEach(button => button.setAttribute("aria-pressed", String(twoColumns)));
+}
+
+function toggleLayout() {
+  twoColumns = !twoColumns;
+  try { localStorage.setItem(LAYOUT_CACHE_KEY, String(twoColumns)); } catch (error) { /* sem armazenamento */ }
+  applyLayout();
+}
 const DEMO_PASSWORD = "123";
 const ROLE_LABELS = { admin: "Líder", musico: "Músico", vocal: "Vocal" };
 const SERVER_HEADERS = { "x-sound-asaph": "1" };
@@ -93,6 +108,16 @@ function currentSong() {
   return songs.find(song => song.id === selectedSongId);
 }
 
+function songMatchKey(song) {
+  return (song.title || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+// PDF/Word só são lidos pelo servidor; o catálogo embutido completa o que o Drive no navegador não consegue ler.
+function withBundledSongs(driveSongs) {
+  const known = new Set(driveSongs.map(songMatchKey));
+  return [...driveSongs, ...bundledFolderSongs.filter(song => !known.has(songMatchKey(song)))];
+}
+
 function cleanToneFromTitle(title) {
   return title.normalize("NFC")
     .replace(/\s*\(\s*(?:d[oó]|r[eé]|m[ií]|f[aá]|sol|l[aá]|si|[a-g](?:#|b)?m?)\s*\)/gi, "")
@@ -137,6 +162,34 @@ function normalizeIntroChords(lyrics) {
   }).join("\n");
 }
 
+const SECTION_PATTERN = new RegExp(
+  "^\\s*[\\[(]?\\s*((?:intro(?:du[cç][aã]o)?|verso|estrofe|pr[eé][-\\s]?(?:verso|refr[aã]o|coro|estrofe)|refr[aã]o|coro|ponte|bridge|final|outro|solo|instrumental|interl[uú]dio|tag|ref|pre[-\\s]?chorus|chorus|verse)\\s*\\d*\\s*[ºª°]?)\\s*(?:\\((?:\\d+\\s*x|bis)\\))?\\s*[\\])]?\\s*:?\\s*(.*)$",
+  "i"
+);
+
+// Separa os marcadores de seção (Intro, Verso, Pré-Refrão, Refrão...) das linhas de cifra.
+function splitSections(lyrics) {
+  const entries = [];
+  for (const line of lyrics.split("\n")) {
+    const match = line.match(SECTION_PATTERN);
+    const isIntro = match && /^intro/i.test(match[1]);
+    if (match && (!match[2].trim() || (isIntro && /\[[A-G]/.test(match[2])))) {
+      entries.push({ section: match[1].trim().replace(/\s+/g, " ").toUpperCase() });
+      if (match[2].trim()) entries.push({ text: match[2].trim() });
+    } else {
+      entries.push({ text: line });
+    }
+  }
+  return entries;
+}
+
+function createSectionElement(label) {
+  const element = document.createElement("div");
+  element.className = "section-label";
+  element.textContent = label;
+  return element;
+}
+
 function displayKey(song, steps = transposeSteps) {
   const key = song.key || "";
   if (!key) return "—";
@@ -151,7 +204,12 @@ function renderLyrics() {
   const capo = Number(capoSelect.value);
   const transpose = transposeSteps - capo;
   lyricsElement.replaceChildren();
-  for (const line of normalizeIntroChords(song.lyrics).split("\n")) {
+  for (const entry of splitSections(normalizeIntroChords(song.lyrics))) {
+    if (entry.section) {
+      lyricsElement.append(createSectionElement(entry.section));
+      continue;
+    }
+    const line = entry.text;
     const lineElement = document.createElement("div");
     lineElement.className = "lyric-line";
     if (isVocalRole) {
@@ -1739,7 +1797,7 @@ async function performGoogleDriveSync(accessToken, onProgress, quiet) {
   const localOnlySongs = loadCachedLocalSongs().filter(song => !song.driveFileId);
   audioAssets = [...audioAssets.filter(track => !track.drive), ...syncedDriveAudios];
   if (shouldApplyDriveSongs) {
-    songs = applySongEdits([...importedSongs, ...localOnlySongs]);
+    songs = applySongEdits([...withBundledSongs(importedSongs), ...localOnlySongs]);
     sundaySongIds = sundaySongIds.filter(id => songs.some(song => song.id === id));
     saveSundaySetlist();
     hasDriveCatalog = true;
@@ -2190,8 +2248,13 @@ function renderWorshipSongs() {
       section.append(key);
     }
     const body = document.createElement("div");
-    body.className = "lyrics worship-lyrics";
-    for (const line of normalizeIntroChords(song.lyrics).split("\n")) {
+    body.className = `lyrics worship-lyrics${twoColumns ? " two-columns" : ""}`;
+    for (const entry of splitSections(normalizeIntroChords(song.lyrics))) {
+      if (entry.section) {
+        body.append(createSectionElement(entry.section));
+        continue;
+      }
+      const line = entry.text;
       const lineElement = document.createElement("div");
       lineElement.className = "lyric-line";
       if (vocalOnly) {
@@ -2216,8 +2279,46 @@ function renderWorshipSongs() {
     section.append(body);
     container.append(section);
   });
+  renderWorshipDots(selected);
   return selected.length;
 }
+
+function renderWorshipDots(selected) {
+  const dots = document.querySelector("#worship-dots");
+  dots.replaceChildren();
+  dots.hidden = selected.length < 2;
+  selected.forEach((song, index) => {
+    const dot = document.createElement("button");
+    dot.type = "button";
+    dot.setAttribute("aria-label", `${index + 1}. ${song.title}`);
+    dot.title = song.title;
+    dot.addEventListener("click", () => goToWorshipSong(index));
+    dots.append(dot);
+  });
+  updateWorshipDots();
+}
+
+function worshipIndex() {
+  const container = document.querySelector("#worship-songs");
+  return container.clientWidth ? Math.round(container.scrollLeft / container.clientWidth) : 0;
+}
+
+function updateWorshipDots() {
+  const current = worshipIndex();
+  document.querySelectorAll("#worship-dots button").forEach((dot, index) => {
+    dot.classList.toggle("active", index === current);
+    dot.setAttribute("aria-current", index === current ? "true" : "false");
+  });
+}
+
+function goToWorshipSong(index) {
+  const container = document.querySelector("#worship-songs");
+  const count = container.children.length;
+  const target = Math.min(count - 1, Math.max(0, index));
+  container.scrollTo({ left: target * container.clientWidth, behavior: "smooth" });
+}
+
+document.querySelector("#worship-songs").addEventListener("scroll", updateWorshipDots, { passive: true });
 
 async function openWorshipMode() {
   if (!sundaySongIds.length || !renderWorshipSongs()) {
@@ -2228,7 +2329,10 @@ async function openWorshipMode() {
   overlay.style.setProperty("--worship-size", `${worshipFontSize}px`);
   overlay.hidden = false;
   document.body.classList.add("worship-open");
-  overlay.scrollTop = 0;
+  const songsContainer = document.querySelector("#worship-songs");
+  songsContainer.scrollLeft = 0;
+  songsContainer.querySelectorAll(".worship-song").forEach(song => { song.scrollTop = 0; });
+  updateWorshipDots();
   try {
     await document.documentElement.requestFullscreen?.({ navigationUI: "hide" });
   } catch (error) {
@@ -2248,6 +2352,9 @@ function changeWorshipFont(delta) {
 }
 
 document.querySelector("#worship-button").addEventListener("click", openWorshipMode);
+document.querySelector("#layout-toggle").addEventListener("click", toggleLayout);
+document.querySelector("#worship-layout").addEventListener("click", toggleLayout);
+applyLayout();
 document.querySelector("#worship-exit").addEventListener("click", closeWorshipMode);
 document.querySelector("#worship-font-up").addEventListener("click", () => changeWorshipFont(2));
 document.querySelector("#worship-font-down").addEventListener("click", () => changeWorshipFont(-2));
@@ -2255,7 +2362,10 @@ document.addEventListener("fullscreenchange", () => {
   if (!document.fullscreenElement && !document.querySelector("#worship-mode").hidden) closeWorshipMode();
 });
 document.addEventListener("keydown", event => {
-  if (event.key === "Escape" && !document.querySelector("#worship-mode").hidden) closeWorshipMode();
+  if (document.querySelector("#worship-mode").hidden) return;
+  if (event.key === "Escape") closeWorshipMode();
+  else if (event.key === "ArrowRight") goToWorshipSong(worshipIndex() + 1);
+  else if (event.key === "ArrowLeft") goToWorshipSong(worshipIndex() - 1);
 });
 
 const SCHEDULE_CACHE_KEY = "sound-asaph-schedule";
@@ -2736,7 +2846,7 @@ Promise.all([
       cachedDriveAudios = [];
       startServerPolling();
     }
-    const initialSongs = cachedDriveSongs !== null ? cachedDriveSongs : [...data, ...bundledFolderSongs];
+    const initialSongs = cachedDriveSongs !== null ? withBundledSongs(cachedDriveSongs) : [...data, ...bundledFolderSongs];
     if (!useServer) songs = applySongEdits([...initialSongs, ...loadCachedLocalSongs()]);
     hasDriveCatalog = !useServer && cachedDriveSongs !== null;
     if (useServer) {
