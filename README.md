@@ -40,6 +40,16 @@ O servidor escuta em todas as interfaces de rede (`HOST=0.0.0.0` por padrão). A
 
 Edições de cifra feitas no app são gravadas no arquivo original do Drive quando ele é `.txt`, `.md` ou Google Doc **e** a pasta foi compartilhada com a conta de serviço como **Editor** (como Leitor, a edição fica só no servidor e o app avisa o motivo). PDF/Word continuam sendo alterados apenas no servidor.
 
+## Atualização automática pelo aplicativo (GitHub Pages)
+
+O workflow `.github/workflows/sync-drive.yml` sincroniza o Drive (inclusive PDF/Word) a cada 30 minutos e publica o catálogo em `data/`. O aplicativo recarrega esse catálogo sozinho a cada minuto. No perfil Líder, o botão **Conectar/Atualizar Drive** pede uma sincronização imediata.
+
+Configuração (uma vez):
+
+1. No repositório, **Settings → Secrets and variables → Actions → New repository secret**: nome `GOOGLE_SERVICE_ACCOUNT`, valor = conteúdo completo de `credentials/service-account.json`.
+2. **Settings → Actions → General → Workflow permissions**: marque **Read and write permissions**.
+3. Para o botão do Líder: em **GitHub → Settings → Developer settings → Fine-grained tokens**, crie um token só para este repositório com **Actions: Read and write**. No aplicativo, o primeiro clique do Líder em Atualizar Drive pede o token, que fica salvo só naquele aparelho.
+
 ## Escalas de louvor
 
 O botão **Escalas** (todos os perfis) abre o painel da escala. A escala é feita **por mês**: o painel mostra sozinho o mês em andamento e passa ao seguinte depois do último domingo. O Líder cadastra membros (nome e função, ex.: Bateria, Tenor, ou "Qualquer nipe") . Os domingos do mês entram automaticamente; o Líder só acrescenta datas extras (ex.: culto especial). O Líder define o **período de preenchimento** do mês (a data inicial já vem sugerida: o dia seguinte ao último domingo do mês anterior). Só durante o período os membros marcam os domingos em que podem servir; antes e depois disso a marcação fica bloqueada (no Apps Script, o bloqueio também vale no servidor).  Encerrado o período, o Líder clica em **Gerar escala**, ajusta se precisar e usa **Fixar escala** para finalizá-la (**Reabrir edição** desfaz). Depois do último domingo o mês é encerrado e a escala fica só para consulta. Sobre a geração: o app preenche uma pessoa por função entre as disponíveis do mês (quem serviu menos tem prioridade); gerar um mês não altera os outros, e depois o Líder pode remover ou adicionar membros em cada data. **Copiar escala** gera um texto para enviar ao grupo. Os dados ficam em `data/schedule.json` no servidor, compartilhados entre os dispositivos (sem servidor, ficam no navegador).

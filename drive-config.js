@@ -1,6 +1,8 @@
 window.SOUND_ASAPH_CONFIG = Object.freeze({
   googleClientId: "595413188773-0ei2ucqsbv4kb349b01vt6g89pj4o2tk.apps.googleusercontent.com",
   driveFolderId: "10LjhQ0UA_vJySE6PMEPX2bocpKrJG3oU",
+  // Repositório do GitHub com o workflow .github/workflows/sync-drive.yml (botão de atualizar do Líder).
+  githubRepo: "gabrielrosa-dev/Sound-Asaph",
   // Chave de API do Google (restrita ao site e à Drive API): permite leitura sem login.
   apiKey: "",
   // URL do app da web do Google Apps Script (veja apps-script/Code.gs) para a escala compartilhada.

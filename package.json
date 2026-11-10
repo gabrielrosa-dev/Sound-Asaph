@@ -5,6 +5,7 @@
   "description": "Catálogo interativo de cifras para ministérios de louvor",
   "scripts": {
     "start": "node scripts/serve.js",
+    "atualizar": "node scripts/publish.js",
     "import": "node scripts/import-songs.js",
     "import:folder": "node scripts/import-folder-songs.js",
     "converter": "node scripts/convert-to-txt.js"

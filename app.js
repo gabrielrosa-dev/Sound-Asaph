@@ -2145,8 +2145,19 @@ async function handleDriveSync() {
   document.querySelector("#drive-status").textContent = "Aguardando autorização do Google...";
   document.querySelector("#drive-status").title = "";
   try {
+    await refreshPublishedCatalog().catch(() => false);
+    if (currentRole === "admin" && (window.SOUND_ASAPH_CONFIG || {}).githubRepo) {
+      try {
+        if (await requestCloudSync()) {
+          showToast("Atualização solicitada. As músicas novas aparecem em alguns minutos.");
+          waitForPublishedUpdate();
+        }
+      } catch (error) {
+        console.error("Não foi possível iniciar a atualização na nuvem.", error);
+        showToast(error.message);
+      }
+    }
     const { googleClientId, apiKey } = window.SOUND_ASAPH_CONFIG || {};
-    if (!googleClientId && !apiKey) throw new Error("Preencha apiKey ou googleClientId em drive-config.js antes de conectar.");
     // Músico/Vocal leem pela chave de API; o Líder entra com Google para poder gravar.
     const accessToken = apiKey && (currentRole !== "admin" || !googleClientId) ? null : await requestDriveAccessToken(googleClientId);
     await syncGoogleDrive(accessToken, status => {
@@ -2172,6 +2183,92 @@ async function handleDriveSync() {
   }
 }
 let serverPollTimer = null;
+
+let demoSongs = [];
+let publishedPollTimer = null;
+const GITHUB_TOKEN_CACHE_KEY = "sound-asaph-github-token";
+const CLOUD_SYNC_WORKFLOW = "sync-drive.yml";
+
+// Recarrega o catálogo publicado (data/*.json), atualizado pelo GitHub Actions a partir do Drive.
+async function refreshPublishedCatalog() {
+  if (serverMode) return false;
+  const [songsResponse, audioResponse] = await Promise.all([
+    fetch("data/folder-songs.json", { cache: "no-store" }),
+    fetch("data/folder-audio.json", { cache: "no-store" }).catch(() => null)
+  ]);
+  if (!songsResponse.ok) return false;
+  const fresh = await songsResponse.json();
+  if (!Array.isArray(fresh) || JSON.stringify(fresh) === JSON.stringify(bundledFolderSongs)) return false;
+  bundledFolderSongs = fresh;
+  const cached = await loadCachedDriveSongs();
+  const base = cached !== null ? withBundledSongs(cached) : [...demoSongs, ...bundledFolderSongs];
+  songs = applySongEdits([...base, ...loadCachedLocalSongs()]);
+  const folderAudio = audioResponse?.ok ? await audioResponse.json().catch(() => []) : [];
+  if (Array.isArray(folderAudio) && folderAudio.length) {
+    audioAssets = [...audioAssets.filter(track => !track.bundled), ...folderAudio.map(track => ({ ...track, bundled: true }))];
+  }
+  const available = visibleSongs();
+  sundaySongIds = sundaySongIds.filter(id => available.some(song => song.id === id));
+  saveSundaySetlist();
+  renderCatalog(searchInput.value);
+  const keep = available.find(song => song.id === selectedSongId) || available[0];
+  if (keep) {
+    const steps = transposeSteps;
+    selectSong(keep.id);
+    if (keep.id === selectedSongId && steps) { transposeSteps = steps; renderLyrics(); }
+  }
+  return true;
+}
+
+function startPublishedCatalogPolling() {
+  if (publishedPollTimer !== null) return;
+  publishedPollTimer = setInterval(() => {
+    if (!document.hidden && navigator.onLine) refreshPublishedCatalog().catch(error => console.error("Falha ao atualizar o catálogo publicado.", error));
+  }, 60_000);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && navigator.onLine) refreshPublishedCatalog().catch(() => {});
+  });
+}
+
+// Pede ao GitHub para rodar a sincronização Drive -> catálogo agora (precisa de um token do Líder neste aparelho).
+async function requestCloudSync() {
+  const { githubRepo } = window.SOUND_ASAPH_CONFIG || {};
+  if (!githubRepo) return false;
+  let token = localStorage.getItem(GITHUB_TOKEN_CACHE_KEY);
+  if (!token) {
+    token = (window.prompt("Cole o token do GitHub (permissão Actions: leitura e escrita) para atualizar as músicas pelo aplicativo. Ele fica salvo só neste aparelho.") || "").trim();
+    if (!token) return false;
+  }
+  const response = await fetch(`https://api.github.com/repos/${githubRepo}/actions/workflows/${CLOUD_SYNC_WORKFLOW}/dispatches`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
+    body: JSON.stringify({ ref: "main" })
+  });
+  if (response.status === 401 || response.status === 403 || response.status === 404) {
+    localStorage.removeItem(GITHUB_TOKEN_CACHE_KEY);
+    throw new Error("O GitHub recusou o token. Confira se ele tem permissão de Actions (leitura e escrita) neste repositório e tente de novo.");
+  }
+  if (!response.ok) throw new Error(`O GitHub não iniciou a atualização (erro ${response.status}).`);
+  localStorage.setItem(GITHUB_TOKEN_CACHE_KEY, token);
+  return true;
+}
+
+// Depois de pedir a sincronização, confere o catálogo publicado até as músicas novas chegarem.
+function waitForPublishedUpdate() {
+  const deadline = Date.now() + 20 * 60_000;
+  const check = async () => {
+    try {
+      if (await refreshPublishedCatalog()) {
+        showToast("Músicas atualizadas.");
+        return;
+      }
+    } catch (error) {
+      console.error("Falha ao conferir o catálogo publicado.", error);
+    }
+    if (Date.now() < deadline) setTimeout(check, 30_000);
+  };
+  setTimeout(check, 30_000);
+}
 function startServerPolling() {
   if (serverPollTimer !== null) return;
   serverPollTimer = setInterval(() => {
@@ -2872,6 +2969,8 @@ Promise.all([
       lyricsElement.replaceChildren();
     }
     startPublicDriveSync();
+    demoSongs = data;
+    if (!useServer) startPublishedCatalogPolling();
   })
   .catch(error => {
     console.error("Não foi possível carregar o catálogo.", error);

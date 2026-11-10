@@ -1,0 +1,46 @@
+name: Sincronizar Drive
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-drive
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm ci
+
+      - name: Restaurar arquivos já baixados
+        uses: actions/cache@v4
+        with:
+          path: musicas
+          key: musicas-${{ github.run_id }}
+          restore-keys: musicas-
+
+      - name: Gravar credenciais do Drive
+        env:
+          GOOGLE_SERVICE_ACCOUNT: ${{ secrets.GOOGLE_SERVICE_ACCOUNT }}
+        run: |
+          mkdir -p credentials
+          printf '%s' "$GOOGLE_SERVICE_ACCOUNT" > credentials/service-account.json
+
+      - name: Sincronizar e publicar
+        run: |
+          git config user.name "sound-asaph-bot"
+          git config user.email "sound-asaph-bot@users.noreply.github.com"
+          node scripts/publish.js
